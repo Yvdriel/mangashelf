@@ -19,6 +19,7 @@ interface ManagedMangaData {
   status: string | null;
   genres: string[];
   averageScore: number | null;
+  bulkTorrentId: string | null;
   monitored: boolean;
 }
 
@@ -159,9 +160,16 @@ export function MangaDetail({
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setSearchModal({})}
-                className="rounded-md bg-accent-400 px-4 py-2 text-sm font-medium text-surface-900 transition-colors hover:bg-accent-300"
+                disabled={!!manga.bulkTorrentId}
+                className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                  manga.bulkTorrentId
+                    ? "bg-blue-500/20 text-blue-400 cursor-not-allowed"
+                    : "bg-accent-400 text-surface-900 hover:bg-accent-300"
+                }`}
               >
-                Search All Missing
+                {manga.bulkTorrentId
+                  ? "Bulk Download in Progress..."
+                  : "Search All Missing"}
               </button>
               {readerMangaId && (
                 <Link

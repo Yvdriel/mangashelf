@@ -30,7 +30,7 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Find the managed volume if volume number specified
+  // Find or create the managed volume if volume number specified
   let volume = null;
   if (volumeNumber != null) {
     volume = db
@@ -43,6 +43,18 @@ export async function POST(
         ),
       )
       .get();
+
+    if (!volume) {
+      volume = db
+        .insert(managedVolume)
+        .values({
+          managedMangaId: mangaId,
+          volumeNumber,
+          status: "missing",
+        })
+        .returning()
+        .get();
+    }
   }
 
   try {
@@ -63,7 +75,7 @@ export async function POST(
       })
       .run();
 
-    // Update volume status if we have one
+    // Track download: per-volume or bulk
     if (volume && torrentId) {
       db.update(managedVolume)
         .set({
@@ -72,6 +84,14 @@ export async function POST(
           updatedAt: new Date(),
         })
         .where(eq(managedVolume.id, volume.id))
+        .run();
+    } else if (volumeNumber == null && torrentId) {
+      db.update(managedManga)
+        .set({
+          bulkTorrentId: torrentId,
+          updatedAt: new Date(),
+        })
+        .where(eq(managedManga.id, mangaId))
         .run();
     }
 

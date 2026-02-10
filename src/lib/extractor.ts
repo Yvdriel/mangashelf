@@ -105,7 +105,12 @@ function extractArchive(archivePath: string, destDir: string): void {
       break;
     }
     case ".rar":
-    case ".cbr":
+    case ".cbr": {
+      execFileSync("bsdtar", ["-xf", archivePath, "-C", destDir], {
+        timeout: 120_000,
+      });
+      break;
+    }
     case ".7z": {
       execFileSync("7z", ["x", `-o${destDir}`, "-y", archivePath], {
         timeout: 120_000,

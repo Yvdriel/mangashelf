@@ -1,0 +1,1 @@
+ALTER TABLE `managed_manga` ADD `bulk_torrent_id` text;

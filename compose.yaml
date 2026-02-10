@@ -1,57 +1,57 @@
 version: "3.9"
 
 services:
-  plex:
-    image: lscr.io/linuxserver/plex:latest
-    container_name: plex
-    network_mode: host
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Etc/UTC
-      - VERSION=docker
-    volumes:
-      - ./config/plex:/config
-      - ./media/tv:/media/tv
-      - ./media/movies:/media/movies
-      - ./media/anime:/media/anime
-      - ./downloads:/media/downloads
-    restart: unless-stopped
+  # plex:
+  #   image: lscr.io/linuxserver/plex:latest
+  #   container_name: plex
+  #   network_mode: host
+  #   environment:
+  #     - PUID=1000
+  #     - PGID=1000
+  #     - TZ=Etc/UTC
+  #     - VERSION=docker
+  #   volumes:
+  #     - ./config/plex:/config
+  #     - ./media/tv:/media/tv
+  #     - ./media/movies:/media/movies
+  #     - ./media/anime:/media/anime
+  #     - ./downloads:/media/downloads
+  #   restart: unless-stopped
 
-  radarr:
-    image: lscr.io/linuxserver/radarr
-    container_name: radarr
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/Amsterdam
-    volumes:
-      - ./config/radarr:/config
-      - ./downloads:/media/downloads
-      - ./media/movies:/media/movies
-    networks:
-      - arrstack
-    ports:
-      - 7878:7878
-    restart: unless-stopped
+  # radarr:
+  #   image: lscr.io/linuxserver/radarr
+  #   container_name: radarr
+  #   environment:
+  #     - PUID=1000
+  #     - PGID=1000
+  #     - TZ=Europe/Amsterdam
+  #   volumes:
+  #     - ./config/radarr:/config
+  #     - ./downloads:/media/downloads
+  #     - ./media/movies:/media/movies
+  #   networks:
+  #     - arrstack
+  #   ports:
+  #     - 7878:7878
+  #   restart: unless-stopped
 
-  sonarr:
-    image: lscr.io/linuxserver/sonarr
-    container_name: sonarr
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/Amsterdam
-    volumes:
-      - ./config/sonarr:/config
-      - ./downloads:/media/downloads
-      - ./media/tv:/media/tv
-      - ./media/anime:/media/anime
-    networks:
-      - arrstack
-    ports:
-      - 8989:8989
-    restart: unless-stopped
+  # sonarr:
+  #   image: lscr.io/linuxserver/sonarr
+  #   container_name: sonarr
+  #   environment:
+  #     - PUID=1000
+  #     - PGID=1000
+  #     - TZ=Europe/Amsterdam
+  #   volumes:
+  #     - ./config/sonarr:/config
+  #     - ./downloads:/media/downloads
+  #     - ./media/tv:/media/tv
+  #     - ./media/anime:/media/anime
+  #   networks:
+  #     - arrstack
+  #   ports:
+  #     - 8989:8989
+  #   restart: unless-stopped
 
   jackett:
     image: lscr.io/linuxserver/jackett
@@ -68,19 +68,19 @@ services:
       - 9117:9117
     restart: unless-stopped
 
-  overseerr:
-    image: sctx/overseerr:latest
-    container_name: overseerr
-    environment:
-      - LOG_LEVEL=debug
-      - TZ=Europe/Amsterdam
-    ports:
-      - 5055:5055
-    volumes:
-      - ./config/overseerr:/app/config
-    networks:
-      - arrstack
-    restart: unless-stopped
+  # overseerr:
+  #   image: sctx/overseerr:latest
+  #   container_name: overseerr
+  #   environment:
+  #     - LOG_LEVEL=debug
+  #     - TZ=Europe/Amsterdam
+  #   ports:
+  #     - 5055:5055
+  #   volumes:
+  #     - ./config/overseerr:/app/config
+  #   networks:
+  #     - arrstack
+  #   restart: unless-stopped
 
   deluge:
     image: lscr.io/linuxserver/deluge

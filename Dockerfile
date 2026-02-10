@@ -1,7 +1,7 @@
 FROM node:22-alpine AS base
 
-# Install 7zip for archive extraction (handles rar, 7z, zip, and more)
-RUN apk add --no-cache 7zip
+# Install archive extraction tools: bsdtar (rar/cbr), 7zip (7z)
+RUN apk add --no-cache libarchive-tools 7zip
 
 # Install dependencies
 FROM base AS deps

@@ -22,6 +22,13 @@
       "when": 1770730551026,
       "tag": "0002_broad_ego",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1770735305384,
+      "tag": "0003_strange_bug",
+      "breakpoints": true
     }
   ]
 }

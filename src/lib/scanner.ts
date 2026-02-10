@@ -90,7 +90,11 @@ function scanFilesystem(): ScannedManga[] {
   return results;
 }
 
-export function syncLibrary(): { added: number; updated: number } {
+export function syncLibrary(): {
+  added: number;
+  updated: number;
+  removed: number;
+} {
   const scanned = scanFilesystem();
   const scannedByFolder = new Map(scanned.map((m) => [m.folderName, m]));
 
@@ -99,6 +103,7 @@ export function syncLibrary(): { added: number; updated: number } {
 
   let added = 0;
   let updated = 0;
+  let removed = 0;
 
   for (const item of scanned) {
     const ex = existingByFolder.get(item.folderName);
@@ -175,5 +180,32 @@ export function syncLibrary(): { added: number; updated: number } {
     }
   }
 
-  return { added, updated };
+  // Remove manga entries no longer present on disk
+  for (const ex of existing) {
+    if (!scannedByFolder.has(ex.folderName)) {
+      db.delete(manga).where(eq(manga.id, ex.id)).run();
+      removed++;
+    }
+  }
+
+  // Remove volumes no longer present on disk for manga that still exist
+  for (const item of scanned) {
+    const ex = existingByFolder.get(item.folderName);
+    if (!ex) continue;
+
+    const scannedVolNumbers = new Set(item.volumes.map((v) => v.number));
+    const existingVolumes = db
+      .select()
+      .from(volume)
+      .where(eq(volume.mangaId, ex.id))
+      .all();
+
+    for (const exVol of existingVolumes) {
+      if (!scannedVolNumbers.has(exVol.volumeNumber)) {
+        db.delete(volume).where(eq(volume.id, exVol.id)).run();
+      }
+    }
+  }
+
+  return { added, updated, removed };
 }

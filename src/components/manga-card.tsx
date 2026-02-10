@@ -6,6 +6,7 @@ interface MangaCardProps {
     id: number;
     title: string;
     coverImage: string | null;
+    coverUrl: string | null;
     totalVolumes: number;
     completedVolumes: number;
     progressPercent: number;
@@ -15,15 +16,21 @@ interface MangaCardProps {
 export function MangaCard({ manga }: MangaCardProps) {
   const isReading = manga.completedVolumes > 0 && manga.progressPercent < 100;
 
+  const coverSrc = manga.coverUrl
+    ? `${manga.coverUrl}?thumb=md`
+    : manga.coverImage
+      ? `/api/manga/${manga.id}/volume/${manga.coverImage.split("/")[1]?.replace("v", "") || "1"}/page/0?thumb=md`
+      : null;
+
   return (
     <Link
       href={`/manga/${manga.id}`}
       className="group overflow-hidden rounded-lg border border-surface-600 bg-surface-700 transition-all hover:border-surface-400 hover:shadow-lg hover:shadow-surface-900/50"
     >
       <div className="relative aspect-[2/3] overflow-hidden bg-surface-600">
-        {manga.coverImage ? (
+        {coverSrc ? (
           <Image
-            src={`/api/manga/${manga.id}/volume/${manga.coverImage.split("/")[1]?.replace("v", "") || "1"}/page/0`}
+            src={coverSrc}
             alt={manga.title}
             fill
             unoptimized

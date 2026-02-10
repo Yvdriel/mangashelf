@@ -83,6 +83,7 @@ export async function POST(request: Request) {
       status: detail.status,
       genres: JSON.stringify(detail.genres || []),
       averageScore: detail.averageScore,
+      staff: JSON.stringify(detail.staff?.edges || []),
     })
     .returning()
     .get();

@@ -4,6 +4,7 @@ import { manga, volume } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
+import { getThumbnail } from "@/lib/thumbnails";
 
 const MANGA_DIR = process.env.MANGA_DIR || "/manga";
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
@@ -22,7 +23,7 @@ function parsePageNumber(filename: string): number {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   {
     params,
   }: {
@@ -30,6 +31,8 @@ export async function GET(
   },
 ) {
   const { id, volumeNumber, pageNumber } = await params;
+  const { searchParams } = new URL(request.url);
+  const thumbSize = searchParams.get("thumb") as "sm" | "md" | null;
   const mangaId = parseInt(id, 10);
   const volNum = parseInt(volumeNumber, 10);
   const pageIdx = parseInt(pageNumber, 10);
@@ -78,6 +81,20 @@ export async function GET(
 
   if (!fs.existsSync(filePath)) {
     return new NextResponse("File not found", { status: 404 });
+  }
+
+  if (thumbSize === "sm" || thumbSize === "md") {
+    const thumbBuffer = await getThumbnail(filePath, thumbSize);
+    if (thumbBuffer) {
+      return new NextResponse(new Uint8Array(thumbBuffer), {
+        headers: {
+          "Content-Type": "image/jpeg",
+          "Cache-Control": "public, max-age=31536000, immutable",
+          "Content-Length": thumbBuffer.length.toString(),
+        },
+      });
+    }
+    // Fall through to serve original if thumbnail generation failed
   }
 
   const ext = path.extname(filename).toLowerCase();

@@ -1,11 +1,17 @@
 import { db } from "@/db";
-import { manga, volume, readingProgress } from "@/db/schema";
+import { manga, volume, readingProgress, managedManga } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { MangaDescription } from "@/components/manga-description";
 
 export const dynamic = "force-dynamic";
+
+interface StaffEdge {
+  role: string;
+  node: { name: { full: string } };
+}
 
 export default async function MangaDetailPage({
   params,
@@ -17,6 +23,25 @@ export default async function MangaDetailPage({
 
   const mangaData = db.select().from(manga).where(eq(manga.id, mangaId)).get();
   if (!mangaData) notFound();
+
+  const managed = mangaData.anilistId
+    ? db
+        .select()
+        .from(managedManga)
+        .where(eq(managedManga.anilistId, mangaData.anilistId))
+        .get()
+    : null;
+
+  const genres: string[] = managed?.genres ? JSON.parse(managed.genres) : [];
+  const staffEdges: StaffEdge[] = managed?.staff
+    ? JSON.parse(managed.staff)
+    : [];
+  const authors = staffEdges
+    .filter((e) => e.role === "Story" || e.role === "Story & Art")
+    .map((e) => e.node.name.full);
+  const artists = staffEdges
+    .filter((e) => e.role === "Art")
+    .map((e) => e.node.name.full);
 
   const volumes = db
     .select()
@@ -35,7 +60,6 @@ export default async function MangaDetailPage({
 
   const completedCount = progress.filter((p) => p.isCompleted).length;
 
-  // Find the "continue reading" target: most recently read non-completed volume
   const lastInProgress = progress
     .filter((p) => !p.isCompleted)
     .sort((a, b) => b.lastReadAt.getTime() - a.lastReadAt.getTime())[0];
@@ -44,7 +68,6 @@ export default async function MangaDetailPage({
     ? volumes.find((v) => v.id === lastInProgress.volumeId)
     : null;
 
-  // If no in-progress volume, find first unread
   const firstUnread = !continueVolume
     ? volumes.find((v) => !progressByVolume.has(v.id))
     : null;
@@ -53,14 +76,30 @@ export default async function MangaDetailPage({
   const targetPage =
     continueVolume && lastInProgress ? lastInProgress.currentPage : 0;
 
+  const statusLabels: Record<string, string> = {
+    FINISHED: "Finished",
+    RELEASING: "Releasing",
+    NOT_YET_RELEASED: "Not Yet Released",
+    CANCELLED: "Cancelled",
+    HIATUS: "Hiatus",
+  };
+
   return (
     <div>
       {/* Hero section */}
       <div className="mb-8 flex gap-6">
         <div className="relative w-48 shrink-0 overflow-hidden rounded-lg bg-surface-600 aspect-[2/3]">
-          {mangaData.coverImage ? (
+          {mangaData.anilistId ? (
             <Image
-              src={`/api/manga/${mangaId}/volume/${mangaData.coverImage.split("/")[1]?.replace("v", "") || "1"}/page/0`}
+              src={`/api/covers/${mangaData.anilistId}?thumb=md`}
+              alt={mangaData.title}
+              fill
+              unoptimized
+              className="object-cover"
+            />
+          ) : mangaData.coverImage ? (
+            <Image
+              src={`/api/manga/${mangaId}/volume/${mangaData.coverImage.split("/")[1]?.replace("v", "") || "1"}/page/0?thumb=md`}
               alt={mangaData.title}
               fill
               unoptimized
@@ -75,10 +114,52 @@ export default async function MangaDetailPage({
 
         <div className="flex flex-col justify-end">
           <h1 className="text-3xl font-bold">{mangaData.title}</h1>
-          <p className="mt-2 text-surface-200">
-            {completedCount > 0 ? "Reading" : "Not started"} &middot;{" "}
-            {completedCount}/{volumes.length} volumes
-          </p>
+
+          {(authors.length > 0 || artists.length > 0) && (
+            <p className="mt-1 text-sm text-surface-200">
+              {authors.length > 0 && <>by {authors.join(", ")}</>}
+              {authors.length > 0 && artists.length > 0 && " · "}
+              {artists.length > 0 && <>Art: {artists.join(", ")}</>}
+            </p>
+          )}
+
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {managed?.status && (
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                  managed.status === "FINISHED"
+                    ? "bg-green-500/15 text-green-400"
+                    : managed.status === "RELEASING"
+                      ? "bg-blue-500/15 text-blue-400"
+                      : "bg-surface-500/30 text-surface-200"
+                }`}
+              >
+                {statusLabels[managed.status] || managed.status}
+              </span>
+            )}
+            {managed?.averageScore && (
+              <span className="rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs font-medium text-yellow-400">
+                ★ {managed.averageScore}%
+              </span>
+            )}
+            <span className="text-sm text-surface-200">
+              {completedCount > 0 ? "Reading" : "Not started"} ·{" "}
+              {completedCount}/{volumes.length} volumes
+            </span>
+          </div>
+
+          {genres.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {genres.map((genre) => (
+                <span
+                  key={genre}
+                  className="rounded-full border border-surface-500 px-2.5 py-0.5 text-[11px] text-surface-200"
+                >
+                  {genre}
+                </span>
+              ))}
+            </div>
+          )}
 
           {targetVolume && (
             <Link
@@ -95,8 +176,11 @@ export default async function MangaDetailPage({
         </div>
       </div>
 
+      {/* Description */}
+      {managed?.description && <MangaDescription html={managed.description} />}
+
       {/* Volumes list */}
-      <h2 className="mb-4 text-lg font-semibold">Volumes</h2>
+      <h2 className="mb-4 mt-8 text-lg font-semibold">Volumes</h2>
       <div className="grid gap-2">
         {volumes.map((vol) => {
           const p = progressByVolume.get(vol.id);

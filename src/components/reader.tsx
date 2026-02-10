@@ -162,7 +162,7 @@ export function Reader({
     >
       {/* Top overlay */}
       <div
-        className={`sticky top-0 z-10 flex items-center justify-between px-4 py-2.5 transition-opacity duration-300 ${
+        className={`sticky top-0 z-10 flex items-center justify-between px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] transition-opacity duration-300 ${
           showOverlay
             ? "bg-surface-900/80 backdrop-blur-sm opacity-100"
             : "opacity-0 pointer-events-none"
@@ -255,7 +255,7 @@ export function Reader({
 
       {/* Bottom progress bar */}
       <div
-        className={`fixed bottom-0 left-0 right-0 h-0.5 bg-surface-600 transition-opacity duration-300 ${
+        className={`fixed bottom-0 left-0 right-0 h-0.5 mb-[env(safe-area-inset-bottom)] bg-surface-600 transition-opacity duration-300 ${
           showOverlay ? "opacity-100" : "opacity-0"
         }`}
       >

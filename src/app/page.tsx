@@ -1,21 +1,37 @@
 import { db } from "@/db";
-import { manga, readingProgress } from "@/db/schema";
+import { manga, readingProgress, managedManga } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { MangaCard } from "@/components/manga-card";
 import { LibraryFilter } from "@/components/library-filter";
 
 export const dynamic = "force-dynamic";
 
 export default function LibraryPage() {
-  const allManga = db.select().from(manga).orderBy(manga.title).all();
+  const allManga = db
+    .select({
+      id: manga.id,
+      anilistId: manga.anilistId,
+      title: manga.title,
+      coverImage: manga.coverImage,
+      totalVolumes: manga.totalVolumes,
+      createdAt: manga.createdAt,
+      anilistCoverUrl: managedManga.coverImage,
+      genres: managedManga.genres,
+    })
+    .from(manga)
+    .leftJoin(managedManga, eq(manga.anilistId, managedManga.anilistId))
+    .orderBy(manga.title)
+    .all();
+
+  const allProgress = db.select().from(readingProgress).all();
+  const progressByManga = new Map<number, (typeof allProgress)[number][]>();
+  for (const p of allProgress) {
+    const list = progressByManga.get(p.mangaId) ?? [];
+    list.push(p);
+    progressByManga.set(p.mangaId, list);
+  }
 
   const mangaWithProgress = allManga.map((m) => {
-    const progress = db
-      .select()
-      .from(readingProgress)
-      .where(eq(readingProgress.mangaId, m.id))
-      .all();
-
+    const progress = progressByManga.get(m.id) ?? [];
     const completedVolumes = progress.filter((p) => p.isCompleted).length;
     const progressPercent =
       m.totalVolumes > 0
@@ -27,10 +43,17 @@ export default function LibraryPage() {
       return latest;
     }, null);
 
+    // Use AniList cover URL via local cache endpoint, fall back to page-based cover
+    const coverUrl = m.anilistId ? `/api/covers/${m.anilistId}` : null;
+
+    const genres: string[] = m.genres ? JSON.parse(m.genres) : [];
+
     return {
       id: m.id,
       title: m.title,
       coverImage: m.coverImage,
+      coverUrl,
+      genres,
       totalVolumes: m.totalVolumes,
       completedVolumes,
       progressPercent,

@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { ScanButton } from "@/components/scan-button";
 import { Nav } from "@/components/nav";
+import { SwRegister } from "@/components/sw-register";
 import Link from "next/link";
 import "./globals.css";
 
@@ -13,6 +14,20 @@ const geist = Geist({
 export const metadata: Metadata = {
   title: "MangaShelf",
   description: "Self-hosted manga reader",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "MangaShelf",
+  },
+  other: {
+    "apple-touch-icon": "/icons/icon-192.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1a1a1e",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -40,6 +55,7 @@ export default function RootLayout({
           </div>
         </nav>
         <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
+        <SwRegister />
       </body>
     </html>
   );

@@ -1,0 +1,1 @@
+ALTER TABLE `managed_manga` ADD `staff` text;

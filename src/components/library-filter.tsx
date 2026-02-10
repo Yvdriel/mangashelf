@@ -9,6 +9,8 @@ interface MangaItem {
   id: number;
   title: string;
   coverImage: string | null;
+  coverUrl: string | null;
+  genres: string[];
   totalVolumes: number;
   completedVolumes: number;
   progressPercent: number;
@@ -19,6 +21,24 @@ interface MangaItem {
 export function LibraryFilter({ manga }: { manga: MangaItem[] }) {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("title");
+  const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
+
+  const allGenres = useMemo(() => {
+    const genreSet = new Set<string>();
+    for (const m of manga) {
+      for (const g of m.genres) genreSet.add(g);
+    }
+    return Array.from(genreSet).sort();
+  }, [manga]);
+
+  const toggleGenre = (genre: string) => {
+    setSelectedGenres((prev) => {
+      const next = new Set(prev);
+      if (next.has(genre)) next.delete(genre);
+      else next.add(genre);
+      return next;
+    });
+  };
 
   const filtered = useMemo(() => {
     let result = manga;
@@ -26,6 +46,12 @@ export function LibraryFilter({ manga }: { manga: MangaItem[] }) {
     if (search) {
       const q = search.toLowerCase();
       result = result.filter((m) => m.title.toLowerCase().includes(q));
+    }
+
+    if (selectedGenres.size > 0) {
+      result = result.filter((m) =>
+        m.genres.some((g) => selectedGenres.has(g)),
+      );
     }
 
     result = [...result].sort((a, b) => {
@@ -44,11 +70,11 @@ export function LibraryFilter({ manga }: { manga: MangaItem[] }) {
     });
 
     return result;
-  }, [manga, search, sort]);
+  }, [manga, search, sort, selectedGenres]);
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Library</h1>
         <div className="flex gap-2">
           <input
@@ -69,6 +95,32 @@ export function LibraryFilter({ manga }: { manga: MangaItem[] }) {
           </select>
         </div>
       </div>
+
+      {allGenres.length > 0 && (
+        <div className="mb-6 flex flex-wrap gap-1.5">
+          {allGenres.map((genre) => (
+            <button
+              key={genre}
+              onClick={() => toggleGenre(genre)}
+              className={`rounded-full border px-2.5 py-0.5 text-[11px] transition-colors ${
+                selectedGenres.has(genre)
+                  ? "border-accent-400 bg-accent-400/15 text-accent-300"
+                  : "border-surface-500 text-surface-300 hover:border-surface-400 hover:text-surface-200"
+              }`}
+            >
+              {genre}
+            </button>
+          ))}
+          {selectedGenres.size > 0 && (
+            <button
+              onClick={() => setSelectedGenres(new Set())}
+              className="rounded-full border border-surface-600 px-2.5 py-0.5 text-[11px] text-surface-300 hover:text-surface-100 transition-colors"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
 
       {filtered.length > 0 ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">

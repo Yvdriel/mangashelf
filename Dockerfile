@@ -27,7 +27,7 @@ ENV DATABASE_URL=/data/mangashelf.db
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 RUN mkdir -p /data && chown nextjs:nodejs /data
-RUN mkdir -p /manga
+RUN mkdir -p /manga /manga/.covers /manga/.thumbnails && chown -R nextjs:nodejs /manga/.covers /manga/.thumbnails
 RUN mkdir -p /tmp/mangashelf-extract && chown nextjs:nodejs /tmp/mangashelf-extract
 
 COPY --from=builder /app/public ./public

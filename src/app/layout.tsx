@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { ScanButton } from "@/components/scan-button";
+import { Nav } from "@/components/nav";
 import Link from "next/link";
 import "./globals.css";
 
@@ -26,12 +27,15 @@ export default function RootLayout({
       >
         <nav className="sticky top-0 z-50 border-b border-surface-600 bg-surface-900/80 backdrop-blur-sm">
           <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-            <Link
-              href="/"
-              className="text-lg font-semibold tracking-tight text-accent-300 hover:text-accent-200 transition-colors"
-            >
-              MangaShelf
-            </Link>
+            <div className="flex items-center gap-6">
+              <Link
+                href="/"
+                className="text-lg font-semibold tracking-tight text-accent-300 hover:text-accent-200 transition-colors"
+              >
+                MangaShelf
+              </Link>
+              <Nav />
+            </div>
             <ScanButton />
           </div>
         </nav>

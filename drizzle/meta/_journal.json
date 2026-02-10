@@ -8,6 +8,13 @@
       "when": 1770722393114,
       "tag": "0000_nice_scarlet_spider",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1770725998403,
+      "tag": "0001_grey_tinkerer",
+      "breakpoints": true
     }
   ]
 }

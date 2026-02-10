@@ -68,3 +68,73 @@ export const readingProgress = sqliteTable(
     uniqueIndex("progress_manga_volume_idx").on(table.mangaId, table.volumeId),
   ],
 );
+
+// --- Manager tables ---
+
+export const managedManga = sqliteTable("managed_manga", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  anilistId: integer("anilist_id").notNull().unique(),
+  titleRomaji: text("title_romaji"),
+  titleEnglish: text("title_english"),
+  titleNative: text("title_native"),
+  synonyms: text("synonyms"),
+  coverImage: text("cover_image"),
+  bannerImage: text("banner_image"),
+  description: text("description"),
+  totalVolumes: integer("total_volumes"),
+  status: text("status"),
+  genres: text("genres"),
+  averageScore: integer("average_score"),
+  monitored: integer("monitored", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+export const managedVolume = sqliteTable(
+  "managed_volume",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    managedMangaId: integer("managed_manga_id")
+      .notNull()
+      .references(() => managedManga.id, { onDelete: "cascade" }),
+    volumeNumber: integer("volume_number").notNull(),
+    status: text("status").notNull().default("missing"),
+    torrentId: text("torrent_id"),
+    downloadPath: text("download_path"),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [
+    uniqueIndex("managed_volume_manga_number_idx").on(
+      table.managedMangaId,
+      table.volumeNumber,
+    ),
+  ],
+);
+
+export const downloadHistory = sqliteTable("download_history", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  managedMangaId: integer("managed_manga_id")
+    .notNull()
+    .references(() => managedManga.id, { onDelete: "cascade" }),
+  managedVolumeId: integer("managed_volume_id").references(
+    () => managedVolume.id,
+  ),
+  torrentName: text("torrent_name").notNull(),
+  magnetLink: text("magnet_link").notNull(),
+  status: text("status").notNull().default("sent"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});

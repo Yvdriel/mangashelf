@@ -110,9 +110,16 @@ services:
       - TZ=Europe/Amsterdam
       - MANGA_DIR=/manga
       - DATABASE_URL=/data/mangashelf.db
+      - JACKETT_URL=http://jackett:9117
+      - JACKETT_API_KEY=${JACKETT_API_KEY}
+      - DELUGE_URL=http://deluge:8112
+      - DELUGE_PASSWORD=${DELUGE_PASSWORD:-deluge}
+      - DELUGE_DOWNLOAD_DIR=/downloads
+      - IMPORT_INTERVAL=300
     volumes:
-      - ./media/manga:/manga:ro
+      - ./media/manga:/manga
       - mangashelf-data:/data
+      - ./downloads:/downloads:ro
     networks:
       - arrstack
     ports:

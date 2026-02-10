@@ -10,5 +10,9 @@ export async function register() {
     } catch (e) {
       console.error("[MangaShelf] Library scan failed:", e);
     }
+
+    // Start auto-import interval for the manager
+    const { startImportInterval } = await import("./lib/importer");
+    startImportInterval();
   }
 }

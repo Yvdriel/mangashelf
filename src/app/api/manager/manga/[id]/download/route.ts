@@ -4,8 +4,6 @@ import { managedManga, managedVolume, downloadHistory } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { addTorrent } from "@/lib/deluge";
 
-const DOWNLOAD_DIR = process.env.DELUGE_DOWNLOAD_DIR || "/downloads";
-
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -48,7 +46,7 @@ export async function POST(
   }
 
   try {
-    const torrentId = await addTorrent(magnetLink, DOWNLOAD_DIR);
+    const torrentId = await addTorrent(magnetLink);
 
     // Create download history entry
     const torrentName =

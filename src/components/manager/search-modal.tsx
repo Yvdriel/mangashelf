@@ -47,6 +47,7 @@ export function SearchModal({
 }) {
   const [results, setResults] = useState<TorrentResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortField>("seeders");
   const [downloadingIdx, setDownloadingIdx] = useState<number | null>(null);
   const [downloadedIdxs, setDownloadedIdxs] = useState<Set<number>>(new Set());
@@ -62,9 +63,14 @@ export function SearchModal({
         });
         if (res.ok) {
           setResults(await res.json());
+        } else {
+          const data = await res.json().catch(() => ({}));
+          setError(data.error || `Search failed (${res.status})`);
         }
-      } catch {
-        // silently fail
+      } catch (e) {
+        setError(
+          `Network error: ${e instanceof Error ? e.message : "unknown"}`,
+        );
       } finally {
         setLoading(false);
       }
@@ -153,6 +159,8 @@ export function SearchModal({
             <div className="flex items-center justify-center py-12">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-accent-400" />
             </div>
+          ) : error ? (
+            <p className="py-12 text-center text-sm text-red-400">{error}</p>
           ) : sortedResults.length === 0 ? (
             <p className="py-12 text-center text-sm text-surface-300">
               No results found

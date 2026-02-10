@@ -5,6 +5,7 @@ import { managedManga, managedVolume } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getTorrentStatus } from "./deluge";
 import { syncLibrary } from "./scanner";
+import { extractIfNeeded, cleanupTempDir } from "./extractor";
 
 const MANGA_DIR = process.env.MANGA_DIR || "/manga";
 const DOWNLOAD_DIR = process.env.DELUGE_DOWNLOAD_DIR || "/downloads";
@@ -127,16 +128,45 @@ export async function checkAndImportDownloads(): Promise<{
           manga.titleRomaji || manga.titleEnglish || `Manga ${manga.anilistId}`;
         const sourcePath = path.join(status.downloadLocation, status.name);
 
-        if (
-          importVolume(sourcePath, title, manga.anilistId, vol.volumeNumber)
-        ) {
+        // Extract archives if needed before importing
+        const extraction = extractIfNeeded(sourcePath);
+        if (extraction.error) {
+          console.error(
+            `[MangaShelf] Extraction failed for volume ${vol.id}: ${extraction.error}`,
+          );
           db.update(managedVolume)
-            .set({ status: "imported", updatedAt: new Date() })
+            .set({
+              status: "failed",
+              errorMessage: extraction.error,
+              updatedAt: new Date(),
+            })
             .where(eq(managedVolume.id, vol.id))
             .run();
-          imported++;
-        } else {
           failed++;
+          continue;
+        }
+
+        try {
+          if (
+            importVolume(
+              extraction.importPath,
+              title,
+              manga.anilistId,
+              vol.volumeNumber,
+            )
+          ) {
+            db.update(managedVolume)
+              .set({ status: "imported", updatedAt: new Date() })
+              .where(eq(managedVolume.id, vol.id))
+              .run();
+            imported++;
+          } else {
+            failed++;
+          }
+        } finally {
+          if (extraction.tempDir) {
+            cleanupTempDir(extraction.tempDir);
+          }
         }
       }
     } catch (e) {

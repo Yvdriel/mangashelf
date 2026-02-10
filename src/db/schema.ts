@@ -103,6 +103,7 @@ export const managedVolume = sqliteTable(
       .references(() => managedManga.id, { onDelete: "cascade" }),
     volumeNumber: integer("volume_number").notNull(),
     status: text("status").notNull().default("missing"),
+    errorMessage: text("error_message"),
     torrentId: text("torrent_id"),
     downloadPath: text("download_path"),
     createdAt: integer("created_at", { mode: "timestamp" })

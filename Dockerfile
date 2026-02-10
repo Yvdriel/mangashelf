@@ -1,5 +1,8 @@
 FROM node:22-alpine AS base
 
+# Install 7zip for archive extraction (handles rar, 7z, zip, and more)
+RUN apk add --no-cache 7zip
+
 # Install dependencies
 FROM base AS deps
 WORKDIR /app
@@ -25,6 +28,7 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 RUN mkdir -p /data && chown nextjs:nodejs /data
 RUN mkdir -p /manga
+RUN mkdir -p /tmp/mangashelf-extract && chown nextjs:nodejs /tmp/mangashelf-extract
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

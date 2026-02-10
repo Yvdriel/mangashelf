@@ -99,7 +99,7 @@ services:
     ports:
       - 8112:8112 # Web UI
       - 58846:58846 # Daemon port
-      - 58946:58946 # Incoming peer connections (optional)
+      - 58946:58946 # Incoming peer connections
       - 58946:58946/udp
     restart: unless-stopped
 

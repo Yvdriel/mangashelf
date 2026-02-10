@@ -28,7 +28,7 @@ interface JackettResult {
 
 export async function searchTorrents(
   query: string,
-  categories: number[] = [8000],
+  categories: number[] = [],
 ): Promise<TorrentResult[]> {
   const params = new URLSearchParams({
     apikey: JACKETT_API_KEY,
@@ -39,9 +39,10 @@ export async function searchTorrents(
     params.append("Category[]", String(cat));
   }
 
-  const res = await fetch(
-    `${JACKETT_URL}/api/v2.0/indexers/all/results?${params}`,
-  );
+  const url = `${JACKETT_URL}/api/v2.0/indexers/all/results?${params}`;
+  console.log(`[Jackett] Searching: ${query}`);
+
+  const res = await fetch(url);
 
   if (!res.ok) {
     throw new Error(`Jackett API error: ${res.status}`);
@@ -95,7 +96,8 @@ export async function searchMangaVolumes(
       }
       // If we got results with the first title, that's usually enough
       if (allResults.length > 0) break;
-    } catch {
+    } catch (e) {
+      console.error(`[Jackett] Search failed for "${searchQuery}":`, e);
       continue;
     }
   }

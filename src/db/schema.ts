@@ -88,6 +88,8 @@ export const managedManga = sqliteTable("managed_manga", {
   staff: text("staff"),
   bulkTorrentId: text("bulk_torrent_id"),
   monitored: integer("monitored", { mode: "boolean" }).notNull().default(true),
+  lastMonitoredAt: integer("last_monitored_at", { mode: "timestamp" }),
+  lastMetadataRefresh: integer("last_metadata_refresh", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
@@ -105,8 +107,11 @@ export const managedVolume = sqliteTable(
       .references(() => managedManga.id, { onDelete: "cascade" }),
     volumeNumber: integer("volume_number").notNull(),
     status: text("status").notNull().default("missing"),
+    progress: integer("progress").notNull().default(0),
+    downloadSpeed: integer("download_speed").notNull().default(0),
     errorMessage: text("error_message"),
     torrentId: text("torrent_id"),
+    magnetLink: text("magnet_link"),
     downloadPath: text("download_path"),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
@@ -134,6 +139,9 @@ export const downloadHistory = sqliteTable("download_history", {
   torrentName: text("torrent_name").notNull(),
   magnetLink: text("magnet_link").notNull(),
   status: text("status").notNull().default("sent"),
+  autoDownloaded: integer("auto_downloaded", { mode: "boolean" })
+    .notNull()
+    .default(false),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),

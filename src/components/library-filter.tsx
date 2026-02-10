@@ -16,6 +16,7 @@ interface MangaItem {
   progressPercent: number;
   lastReadAt: Date | null;
   createdAt: Date;
+  downloadingCount?: number;
 }
 
 export function LibraryFilter({ manga }: { manga: MangaItem[] }) {

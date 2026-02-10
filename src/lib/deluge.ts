@@ -76,6 +76,8 @@ export interface TorrentStatus {
   progress: number;
   downloadLocation: string;
   totalSize: number;
+  downloadSpeed: number;
+  eta: number;
 }
 
 export async function getTorrentStatus(
@@ -85,7 +87,15 @@ export async function getTorrentStatus(
 
   const result = (await rpc("core.get_torrent_status", [
     torrentId,
-    ["name", "state", "progress", "download_location", "total_size"],
+    [
+      "name",
+      "state",
+      "progress",
+      "download_location",
+      "total_size",
+      "download_payload_rate",
+      "eta",
+    ],
   ])) as Record<string, unknown> | null;
 
   if (!result || Object.keys(result).length === 0) return null;
@@ -97,6 +107,8 @@ export async function getTorrentStatus(
     progress: result.progress as number,
     downloadLocation: result.download_location as string,
     totalSize: result.total_size as number,
+    downloadSpeed: (result.download_payload_rate as number) || 0,
+    eta: (result.eta as number) || 0,
   };
 }
 
@@ -105,7 +117,15 @@ export async function getActiveTorrents(): Promise<TorrentStatus[]> {
 
   const result = (await rpc("core.get_torrents_status", [
     {},
-    ["name", "state", "progress", "download_location", "total_size"],
+    [
+      "name",
+      "state",
+      "progress",
+      "download_location",
+      "total_size",
+      "download_payload_rate",
+      "eta",
+    ],
   ])) as Record<string, Record<string, unknown>> | null;
 
   if (!result) return [];
@@ -117,5 +137,7 @@ export async function getActiveTorrents(): Promise<TorrentStatus[]> {
     progress: t.progress as number,
     downloadLocation: t.download_location as string,
     totalSize: t.total_size as number,
+    downloadSpeed: (t.download_payload_rate as number) || 0,
+    eta: (t.eta as number) || 0,
   }));
 }

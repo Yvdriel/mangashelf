@@ -1,6 +1,11 @@
 import { db } from "@/db";
-import { manga, readingProgress, managedManga } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import {
+  manga,
+  readingProgress,
+  managedManga,
+  managedVolume,
+} from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 import { LibraryFilter } from "@/components/library-filter";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +33,25 @@ export default function LibraryPage() {
     const list = progressByManga.get(p.mangaId) ?? [];
     list.push(p);
     progressByManga.set(p.mangaId, list);
+  }
+
+  // Get downloading volume counts per anilistId
+  const downloadingVolumes = db
+    .select({
+      anilistId: managedManga.anilistId,
+      volumeNumber: managedVolume.volumeNumber,
+    })
+    .from(managedVolume)
+    .innerJoin(managedManga, eq(managedVolume.managedMangaId, managedManga.id))
+    .where(eq(managedVolume.status, "downloading"))
+    .all();
+
+  const downloadingByAnilistId = new Map<number, number>();
+  for (const dv of downloadingVolumes) {
+    downloadingByAnilistId.set(
+      dv.anilistId,
+      (downloadingByAnilistId.get(dv.anilistId) || 0) + 1,
+    );
   }
 
   const mangaWithProgress = allManga.map((m) => {
@@ -59,6 +83,9 @@ export default function LibraryPage() {
       progressPercent,
       lastReadAt,
       createdAt: m.createdAt,
+      downloadingCount: m.anilistId
+        ? downloadingByAnilistId.get(m.anilistId) || 0
+        : 0,
     };
   });
 

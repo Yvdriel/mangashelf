@@ -1,6 +1,11 @@
 import { db } from "@/db";
-import { managedManga, managedVolume, manga } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import {
+  managedManga,
+  managedVolume,
+  manga,
+  downloadHistory,
+} from "@/db/schema";
+import { eq, desc } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { MangaDetail } from "@/components/manager/manga-detail";
 
@@ -36,6 +41,15 @@ export default async function ManagedMangaDetailPage({
     .where(eq(manga.anilistId, mangaData.anilistId))
     .get();
 
+  // Recent download history for activity log
+  const history = db
+    .select()
+    .from(downloadHistory)
+    .where(eq(downloadHistory.managedMangaId, mangaId))
+    .orderBy(desc(downloadHistory.createdAt))
+    .limit(20)
+    .all();
+
   return (
     <MangaDetail
       manga={{
@@ -45,6 +59,7 @@ export default async function ManagedMangaDetailPage({
       }}
       volumes={volumes}
       readerMangaId={readerManga?.id || null}
+      history={history}
     />
   );
 }

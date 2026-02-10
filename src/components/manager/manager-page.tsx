@@ -54,6 +54,7 @@ export function ManagerPage({
     new Set(existingAnilistIds),
   );
   const [addingId, setAddingId] = useState<number | null>(null);
+  const [runningMonitor, setRunningMonitor] = useState(false);
 
   // Debounced search
   useEffect(() => {
@@ -103,6 +104,18 @@ export function ManagerPage({
     },
     [router],
   );
+
+  const handleRunMonitor = useCallback(async () => {
+    setRunningMonitor(true);
+    try {
+      await fetch("/api/manager/monitor/run", { method: "POST" });
+      router.refresh();
+    } catch {
+      // silently fail
+    } finally {
+      setRunningMonitor(false);
+    }
+  }, [router]);
 
   return (
     <div>
@@ -219,7 +232,18 @@ export function ManagerPage({
       </div>
 
       {/* Managed manga library */}
-      <h2 className="mb-4 text-lg font-semibold">Managed Library</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Managed Library</h2>
+        {managedManga.length > 0 && (
+          <button
+            onClick={handleRunMonitor}
+            disabled={runningMonitor}
+            className="rounded-md border border-surface-500 px-3 py-1.5 text-xs font-medium text-surface-200 transition-colors hover:bg-surface-700 disabled:opacity-50"
+          >
+            {runningMonitor ? "Monitoring..." : "Run Monitor"}
+          </button>
+        )}
+      </div>
       {managedManga.length === 0 ? (
         <p className="text-sm text-surface-300">
           No manga added yet. Search AniList above to get started.
@@ -248,6 +272,26 @@ export function ManagerPage({
                   ) : (
                     <div className="flex h-full items-center justify-center text-surface-300">
                       No Cover
+                    </div>
+                  )}
+                  {manga.monitored && (
+                    <div
+                      className="absolute top-2 left-2 rounded-full bg-surface-900/70 p-1"
+                      title="Monitored"
+                    >
+                      <svg
+                        className="h-3 w-3 text-accent-300"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2.5}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M9.348 14.651a3.75 3.75 0 010-5.303m5.304 0a3.75 3.75 0 010 5.303m-7.425 2.122a6.75 6.75 0 010-9.546m9.546 0a6.75 6.75 0 010 9.546M5.106 18.894c-3.808-3.808-3.808-9.98 0-13.788m13.788 0c3.808 3.808 3.808 9.98 0 13.788"
+                        />
+                      </svg>
                     </div>
                   )}
                   {manga.downloadingCount > 0 && (

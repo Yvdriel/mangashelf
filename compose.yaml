@@ -115,7 +115,10 @@ services:
       - DELUGE_URL=http://deluge:8112
       - DELUGE_PASSWORD=${DELUGE_PASSWORD:-deluge}
       - DELUGE_DOWNLOAD_DIR=/downloads
-      - IMPORT_INTERVAL=300
+      - IMPORT_INTERVAL=30
+      - DOWNLOAD_CHECK_INTERVAL=30
+      - MONITOR_INTERVAL=3600
+      - AUTO_DOWNLOAD=true
     volumes:
       - ./media/manga:/manga
       - mangashelf-data:/data

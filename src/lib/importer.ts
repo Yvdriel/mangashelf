@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { db } from "@/db";
-import { managedManga, managedVolume } from "@/db/schema";
+import { managedManga, managedVolume, downloadHistory } from "@/db/schema";
 import { eq, inArray, isNotNull, and } from "drizzle-orm";
 import { getTorrentStatus } from "./deluge";
 import { syncLibrary } from "./scanner";
@@ -9,8 +9,8 @@ import { extractIfNeeded, cleanupTempDir } from "./extractor";
 
 const MANGA_DIR = process.env.MANGA_DIR || "/manga";
 const DOWNLOAD_DIR = "/downloads";
-const IMPORT_INTERVAL =
-  parseInt(process.env.IMPORT_INTERVAL || "300", 10) * 1000;
+const DOWNLOAD_CHECK_INTERVAL =
+  parseInt(process.env.DOWNLOAD_CHECK_INTERVAL || "30", 10) * 1000;
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
 function findImageFiles(dir: string): string[] {
@@ -120,6 +120,55 @@ function detectVolumeFoldersWithUnwrap(
     volumes = detectVolumeFolders(path.join(dir, subdirs[0].name));
   }
   return volumes;
+}
+
+export async function updateDownloadProgress(): Promise<void> {
+  const downloading = db
+    .select()
+    .from(managedVolume)
+    .where(eq(managedVolume.status, "downloading"))
+    .all();
+
+  if (downloading.length === 0) return;
+
+  for (const vol of downloading) {
+    if (!vol.torrentId) continue;
+
+    try {
+      const status = await getTorrentStatus(vol.torrentId);
+      if (!status) continue;
+
+      const isComplete =
+        status.state === "Seeding" ||
+        (status.state === "Paused" && status.progress === 100);
+
+      if (isComplete) {
+        db.update(managedVolume)
+          .set({
+            status: "downloaded",
+            progress: 100,
+            downloadSpeed: 0,
+            updatedAt: new Date(),
+          })
+          .where(eq(managedVolume.id, vol.id))
+          .run();
+      } else {
+        db.update(managedVolume)
+          .set({
+            progress: Math.round(status.progress),
+            downloadSpeed: status.downloadSpeed,
+            updatedAt: new Date(),
+          })
+          .where(eq(managedVolume.id, vol.id))
+          .run();
+      }
+    } catch (e) {
+      console.error(
+        `[MangaShelf] Progress check failed for volume ${vol.id}:`,
+        e,
+      );
+    }
+  }
 }
 
 export async function checkAndImportBulkDownloads(): Promise<{
@@ -413,8 +462,19 @@ export async function checkAndImportDownloads(): Promise<{
             .set({ status: "imported", updatedAt: new Date() })
             .where(eq(managedVolume.id, vol.id))
             .run();
+
+          // Update download history status to "imported"
+          db.update(downloadHistory)
+            .set({ status: "imported", updatedAt: new Date() })
+            .where(eq(downloadHistory.managedVolumeId, vol.id))
+            .run();
+
           imported++;
         } else {
+          db.update(downloadHistory)
+            .set({ status: "failed", updatedAt: new Date() })
+            .where(eq(downloadHistory.managedVolumeId, vol.id))
+            .run();
           failed++;
         }
       } finally {
@@ -443,17 +503,18 @@ export async function checkAndImportDownloads(): Promise<{
   return { imported, failed };
 }
 
-let importTimer: ReturnType<typeof setInterval> | null = null;
+let backgroundTimer: ReturnType<typeof setInterval> | null = null;
 
-export function startImportInterval(): void {
-  if (importTimer) return;
+export function startBackgroundTasks(): void {
+  if (backgroundTimer) return;
 
   console.log(
-    `[MangaShelf] Starting auto-import check every ${IMPORT_INTERVAL / 1000}s`,
+    `[MangaShelf] Starting download check every ${DOWNLOAD_CHECK_INTERVAL / 1000}s`,
   );
 
-  importTimer = setInterval(async () => {
+  backgroundTimer = setInterval(async () => {
     try {
+      await updateDownloadProgress();
       const bulk = await checkAndImportBulkDownloads();
       const single = await checkAndImportDownloads();
       const totalImported = bulk.imported + single.imported;
@@ -464,7 +525,18 @@ export function startImportInterval(): void {
         );
       }
     } catch (e) {
-      console.error("[MangaShelf] Auto-import error:", e);
+      console.error("[MangaShelf] Background task error:", e);
     }
-  }, IMPORT_INTERVAL);
+  }, DOWNLOAD_CHECK_INTERVAL);
+
+  // Graceful shutdown
+  const cleanup = () => {
+    if (backgroundTimer) clearInterval(backgroundTimer);
+    backgroundTimer = null;
+  };
+  process.on("SIGTERM", cleanup);
+  process.on("SIGINT", cleanup);
 }
+
+/** @deprecated Use startBackgroundTasks instead */
+export const startImportInterval = startBackgroundTasks;

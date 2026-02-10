@@ -1,5 +1,11 @@
 import { db } from "@/db";
-import { manga, volume, readingProgress, managedManga } from "@/db/schema";
+import {
+  manga,
+  volume,
+  readingProgress,
+  managedManga,
+  managedVolume,
+} from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Image from "next/image";
@@ -58,6 +64,27 @@ export default async function MangaDetailPage({
 
   const progressByVolume = new Map(progress.map((p) => [p.volumeId, p]));
 
+  // Get download status per volume number from managed tables
+  const downloadStatusByVolNum = new Map<
+    number,
+    { status: string; progress: number }
+  >();
+  if (managed) {
+    const managedVols = db
+      .select()
+      .from(managedVolume)
+      .where(eq(managedVolume.managedMangaId, managed.id))
+      .all();
+    for (const mv of managedVols) {
+      if (mv.status === "downloading" || mv.status === "downloaded") {
+        downloadStatusByVolNum.set(mv.volumeNumber, {
+          status: mv.status,
+          progress: mv.progress,
+        });
+      }
+    }
+  }
+
   const completedCount = progress.filter((p) => p.isCompleted).length;
 
   const lastInProgress = progress
@@ -84,95 +111,117 @@ export default async function MangaDetailPage({
     HIATUS: "Hiatus",
   };
 
+  const coverUrl = mangaData.anilistId
+    ? `/api/covers/${mangaData.anilistId}`
+    : null;
+  const coverThumb = mangaData.anilistId
+    ? `/api/covers/${mangaData.anilistId}?thumb=md`
+    : mangaData.coverImage
+      ? `/api/manga/${mangaId}/volume/${mangaData.coverImage.split("/")[1]?.replace("v", "") || "1"}/page/0?thumb=md`
+      : null;
+
   return (
     <div>
       {/* Hero section */}
-      <div className="mb-8 flex gap-6">
-        <div className="relative w-48 shrink-0 overflow-hidden rounded-lg bg-surface-600 aspect-[2/3]">
-          {mangaData.anilistId ? (
-            <Image
-              src={`/api/covers/${mangaData.anilistId}?thumb=md`}
-              alt={mangaData.title}
-              fill
-              unoptimized
-              className="object-cover"
+      <div className="relative -mx-4 -mt-6 mb-8 overflow-hidden">
+        {/* Banner / blurred background */}
+        <div className="absolute inset-0 h-64">
+          {managed?.bannerImage ? (
+            <img
+              src={managed.bannerImage}
+              alt=""
+              className="h-full w-full object-cover opacity-30"
             />
-          ) : mangaData.coverImage ? (
-            <Image
-              src={`/api/manga/${mangaId}/volume/${mangaData.coverImage.split("/")[1]?.replace("v", "") || "1"}/page/0?thumb=md`}
-              alt={mangaData.title}
-              fill
-              unoptimized
-              className="object-cover"
+          ) : coverUrl ? (
+            <img
+              src={coverUrl}
+              alt=""
+              className="h-full w-full scale-110 object-cover opacity-20 blur-2xl"
             />
-          ) : (
-            <div className="flex aspect-[2/3] items-center justify-center text-surface-300">
-              No Cover
-            </div>
-          )}
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-surface-900" />
         </div>
 
-        <div className="flex flex-col justify-end">
-          <h1 className="text-3xl font-bold">{mangaData.title}</h1>
-
-          {(authors.length > 0 || artists.length > 0) && (
-            <p className="mt-1 text-sm text-surface-200">
-              {authors.length > 0 && <>by {authors.join(", ")}</>}
-              {authors.length > 0 && artists.length > 0 && " · "}
-              {artists.length > 0 && <>Art: {artists.join(", ")}</>}
-            </p>
-          )}
-
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {managed?.status && (
-              <span
-                className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                  managed.status === "FINISHED"
-                    ? "bg-green-500/15 text-green-400"
-                    : managed.status === "RELEASING"
-                      ? "bg-blue-500/15 text-blue-400"
-                      : "bg-surface-500/30 text-surface-200"
-                }`}
-              >
-                {statusLabels[managed.status] || managed.status}
-              </span>
+        <div className="relative mx-auto flex max-w-7xl gap-6 px-4 pt-8 pb-4">
+          <div className="w-40 shrink-0 overflow-hidden rounded-lg bg-surface-600 shadow-xl">
+            {coverThumb ? (
+              <Image
+                src={coverThumb}
+                alt={mangaData.title}
+                width={160}
+                height={240}
+                unoptimized
+                className="aspect-[2/3] w-full object-cover"
+              />
+            ) : (
+              <div className="flex aspect-[2/3] items-center justify-center text-surface-300">
+                No Cover
+              </div>
             )}
-            {managed?.averageScore && (
-              <span className="rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs font-medium text-yellow-400">
-                ★ {managed.averageScore}%
-              </span>
-            )}
-            <span className="text-sm text-surface-200">
-              {completedCount > 0 ? "Reading" : "Not started"} ·{" "}
-              {completedCount}/{volumes.length} volumes
-            </span>
           </div>
 
-          {genres.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {genres.map((genre) => (
-                <span
-                  key={genre}
-                  className="rounded-full border border-surface-500 px-2.5 py-0.5 text-[11px] text-surface-200"
-                >
-                  {genre}
-                </span>
-              ))}
-            </div>
-          )}
+          <div className="flex min-w-0 flex-col justify-end">
+            <h1 className="text-2xl font-bold">{mangaData.title}</h1>
 
-          {targetVolume && (
-            <Link
-              href={`/manga/${mangaId}/read/${targetVolume.volumeNumber}${targetPage > 0 ? `?p=${targetPage}` : ""}`}
-              className="mt-4 inline-flex w-fit items-center rounded-md bg-accent-400 px-4 py-2 text-sm font-medium text-surface-900 transition-colors hover:bg-accent-300"
-            >
-              {continueVolume
-                ? `Continue Reading · Vol ${continueVolume.volumeNumber}`
-                : firstUnread
-                  ? `Start Reading · Vol ${firstUnread.volumeNumber}`
-                  : `Read Vol ${targetVolume.volumeNumber}`}
-            </Link>
-          )}
+            {(authors.length > 0 || artists.length > 0) && (
+              <p className="mt-0.5 text-sm text-surface-200">
+                {authors.length > 0 && <>by {authors.join(", ")}</>}
+                {authors.length > 0 && artists.length > 0 && " · "}
+                {artists.length > 0 && <>Art: {artists.join(", ")}</>}
+              </p>
+            )}
+
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {managed?.status && (
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                    managed.status === "FINISHED"
+                      ? "bg-green-500/15 text-green-400"
+                      : managed.status === "RELEASING"
+                        ? "bg-blue-500/15 text-blue-400"
+                        : "bg-surface-500/30 text-surface-200"
+                  }`}
+                >
+                  {statusLabels[managed.status] || managed.status}
+                </span>
+              )}
+              {managed?.averageScore && (
+                <span className="rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs font-medium text-yellow-400">
+                  ★ {managed.averageScore}%
+                </span>
+              )}
+              <span className="text-sm text-surface-200">
+                {completedCount > 0 ? "Reading" : "Not started"} ·{" "}
+                {completedCount}/{volumes.length} volumes
+              </span>
+            </div>
+
+            {genres.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {genres.map((genre) => (
+                  <span
+                    key={genre}
+                    className="rounded-full border border-surface-500 px-2.5 py-0.5 text-[11px] text-surface-200"
+                  >
+                    {genre}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {targetVolume && (
+              <Link
+                href={`/manga/${mangaId}/read/${targetVolume.volumeNumber}${targetPage > 0 ? `?p=${targetPage}` : ""}`}
+                className="mt-4 inline-flex w-fit items-center rounded-md bg-accent-400 px-4 py-2 text-sm font-medium text-surface-900 transition-colors hover:bg-accent-300"
+              >
+                {continueVolume
+                  ? `Continue Reading · Vol ${continueVolume.volumeNumber}`
+                  : firstUnread
+                    ? `Start Reading · Vol ${firstUnread.volumeNumber}`
+                    : `Read Vol ${targetVolume.volumeNumber}`}
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
@@ -189,6 +238,7 @@ export default async function MangaDetailPage({
             : p
               ? "reading"
               : "unread";
+          const dl = downloadStatusByVolNum.get(vol.volumeNumber);
 
           return (
             <Link
@@ -206,6 +256,16 @@ export default async function MangaDetailPage({
               </div>
 
               <div className="flex items-center gap-3">
+                {dl && dl.status === "downloading" && (
+                  <span className="flex items-center gap-1.5 rounded-full bg-blue-500/20 px-2 py-0.5 text-xs font-medium text-blue-400">
+                    Downloading {Math.round(dl.progress)}%
+                  </span>
+                )}
+                {dl && dl.status === "downloaded" && (
+                  <span className="rounded-full bg-yellow-500/20 px-2 py-0.5 text-xs font-medium text-yellow-400">
+                    Importing...
+                  </span>
+                )}
                 {status === "completed" && (
                   <span className="rounded-full bg-accent-200/15 px-2 py-0.5 text-xs font-medium text-accent-300">
                     Completed
@@ -216,7 +276,7 @@ export default async function MangaDetailPage({
                     Page {p.currentPage + 1}/{vol.pageCount}
                   </span>
                 )}
-                {status === "unread" && (
+                {status === "unread" && !dl && (
                   <span className="text-xs text-surface-300">Unread</span>
                 )}
                 <svg

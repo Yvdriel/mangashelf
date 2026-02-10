@@ -10,6 +10,7 @@ interface MangaCardProps {
     totalVolumes: number;
     completedVolumes: number;
     progressPercent: number;
+    downloadingCount?: number;
   };
 }
 
@@ -44,6 +45,11 @@ export function MangaCard({ manga }: MangaCardProps) {
         {isReading && (
           <div className="absolute top-2 right-2 rounded-full bg-accent-400 px-2 py-0.5 text-[10px] font-medium text-surface-900">
             Reading
+          </div>
+        )}
+        {manga.downloadingCount != null && manga.downloadingCount > 0 && (
+          <div className="absolute top-2 left-2 rounded-full bg-blue-500 px-2 py-0.5 text-[10px] font-medium text-white">
+            {manga.downloadingCount} downloading
           </div>
         )}
         {manga.progressPercent > 0 && (

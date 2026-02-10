@@ -21,13 +21,34 @@ interface ManagedMangaData {
   averageScore: number | null;
   bulkTorrentId: string | null;
   monitored: boolean;
+  lastMonitoredAt: Date | null;
 }
 
 interface ManagedVolumeData {
   id: number;
   volumeNumber: number;
   status: string;
+  progress: number;
+  magnetLink: string | null;
   torrentId: string | null;
+}
+
+interface DownloadHistoryItem {
+  id: number;
+  torrentName: string;
+  status: string;
+  autoDownloaded: boolean;
+  createdAt: Date;
+}
+
+function formatTimeAgo(date: Date): string {
+  const diff = Date.now() - new Date(date).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
 }
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
@@ -48,22 +69,30 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
     label: "Imported",
     className: "bg-accent-400/15 text-accent-300",
   },
+  available: {
+    label: "Available",
+    className: "bg-green-500/20 text-green-400",
+  },
 };
 
 export function MangaDetail({
   manga,
   volumes,
   readerMangaId,
+  history,
 }: {
   manga: ManagedMangaData;
   volumes: ManagedVolumeData[];
   readerMangaId: number | null;
+  history: DownloadHistoryItem[];
 }) {
   const router = useRouter();
   const [searchModal, setSearchModal] = useState<{
     volumeNumber?: number;
   } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [approvingId, setApprovingId] = useState<number | null>(null);
 
   const title =
     manga.titleNative || manga.titleRomaji || manga.titleEnglish || "";
@@ -92,6 +121,43 @@ export function MangaDetail({
     });
     router.refresh();
   }, [manga.id, manga.monitored, router]);
+
+  const handleCheckNow = useCallback(async () => {
+    setChecking(true);
+    try {
+      await fetch(`/api/manager/manga/${manga.id}/monitor`, {
+        method: "POST",
+      });
+      router.refresh();
+    } catch {
+      // silently fail
+    } finally {
+      setChecking(false);
+    }
+  }, [manga.id, router]);
+
+  const handleApproveDownload = useCallback(
+    async (vol: ManagedVolumeData) => {
+      if (!vol.magnetLink) return;
+      setApprovingId(vol.id);
+      try {
+        await fetch(`/api/manager/manga/${manga.id}/download`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            magnetLink: vol.magnetLink,
+            volumeNumber: vol.volumeNumber,
+          }),
+        });
+        router.refresh();
+      } catch {
+        // silently fail
+      } finally {
+        setApprovingId(null);
+      }
+    },
+    [manga.id, router],
+  );
 
   return (
     <div>
@@ -190,6 +256,13 @@ export function MangaDetail({
                 {manga.monitored ? "Monitored" : "Unmonitored"}
               </button>
               <button
+                onClick={handleCheckNow}
+                disabled={checking}
+                className="rounded-md border border-surface-500 px-4 py-2 text-sm font-medium text-surface-100 transition-colors hover:bg-surface-700 disabled:opacity-50"
+              >
+                {checking ? "Checking..." : "Check Now"}
+              </button>
+              <button
                 onClick={handleDelete}
                 disabled={deleting}
                 className="rounded-md border border-surface-500 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10"
@@ -197,6 +270,12 @@ export function MangaDetail({
                 Remove
               </button>
             </div>
+
+            {manga.lastMonitoredAt && (
+              <p className="mt-2 text-xs text-surface-400">
+                Last checked: {formatTimeAgo(manga.lastMonitoredAt)}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -219,48 +298,104 @@ export function MangaDetail({
             return (
               <div
                 key={vol.id}
-                className="flex items-center justify-between rounded-lg border border-surface-600 bg-surface-700 px-4 py-3"
+                className="rounded-lg border border-surface-600 bg-surface-700 px-4 py-3"
               >
-                <div className="flex items-center gap-4">
-                  <span className="text-sm font-medium">
-                    Volume {vol.volumeNumber}
-                  </span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${style.className}`}
-                  >
-                    {style.label}
-                  </span>
-                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-medium">
+                      Volume {vol.volumeNumber}
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${style.className}`}
+                    >
+                      {vol.status === "downloading"
+                        ? `Downloading ${Math.round(vol.progress)}%`
+                        : style.label}
+                    </span>
+                  </div>
 
-                {vol.status === "missing" && (
-                  <button
-                    onClick={() =>
-                      setSearchModal({ volumeNumber: vol.volumeNumber })
-                    }
-                    className="rounded-md bg-surface-600 px-3 py-1.5 text-xs font-medium text-surface-100 transition-colors hover:bg-surface-500"
-                  >
-                    Search
-                  </button>
-                )}
-                {vol.status === "imported" && (
-                  <svg
-                    className="h-5 w-5 text-accent-300"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M5 13l4 4L19 7"
+                  <div className="flex items-center gap-2">
+                    {vol.status === "missing" && (
+                      <button
+                        onClick={() =>
+                          setSearchModal({ volumeNumber: vol.volumeNumber })
+                        }
+                        className="rounded-md bg-surface-600 px-3 py-1.5 text-xs font-medium text-surface-100 transition-colors hover:bg-surface-500"
+                      >
+                        Search
+                      </button>
+                    )}
+                    {vol.status === "available" && (
+                      <button
+                        onClick={() => handleApproveDownload(vol)}
+                        disabled={approvingId === vol.id}
+                        className="rounded-md bg-green-500/20 px-3 py-1.5 text-xs font-medium text-green-400 transition-colors hover:bg-green-500/30 disabled:opacity-50"
+                      >
+                        {approvingId === vol.id
+                          ? "Sending..."
+                          : "Approve Download"}
+                      </button>
+                    )}
+                    {vol.status === "imported" && (
+                      <svg
+                        className="h-5 w-5 text-accent-300"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                {vol.status === "downloading" && (
+                  <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-500">
+                    <div
+                      className="h-full rounded-full bg-blue-400 transition-all duration-500"
+                      style={{ width: `${vol.progress}%` }}
                     />
-                  </svg>
+                  </div>
                 )}
               </div>
             );
           })}
         </div>
+      )}
+
+      {/* Activity log */}
+      {history.length > 0 && (
+        <>
+          <h2 className="mb-4 mt-8 text-lg font-semibold">Activity</h2>
+          <div className="grid gap-2">
+            {history.map((h) => (
+              <div
+                key={h.id}
+                className="flex items-center justify-between rounded-lg border border-surface-600 bg-surface-700 px-4 py-2.5"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-surface-200">
+                    {h.torrentName}
+                  </p>
+                </div>
+                <div className="ml-3 flex shrink-0 items-center gap-2">
+                  {h.autoDownloaded && (
+                    <span className="rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
+                      Auto
+                    </span>
+                  )}
+                  <span className="text-xs text-surface-400">
+                    {formatTimeAgo(h.createdAt)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Search modal */}

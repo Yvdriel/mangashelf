@@ -36,6 +36,13 @@
       "when": 1770743965695,
       "tag": "0004_foamy_terror",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1770750507203,
+      "tag": "0005_spotty_rick_jones",
+      "breakpoints": true
     }
   ]
 }

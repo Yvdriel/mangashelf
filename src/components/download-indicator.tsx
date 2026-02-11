@@ -20,7 +20,8 @@ function timeAgo(dateStr: string): string {
 }
 
 export function DownloadIndicator() {
-  const { active, bulk, recent, summary } = useDownloadStatus();
+  const { active, bulk, recent, importing, scanning, summary } =
+    useDownloadStatus();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -47,7 +48,9 @@ export function DownloadIndicator() {
   }, [open]);
 
   const totalActive = summary.activeCount + (summary.bulkCount || 0);
-  if (totalActive === 0 && summary.recentCount === 0) return null;
+  const hasActivity =
+    totalActive > 0 || importing || scanning || summary.recentCount > 0;
+  if (!hasActivity) return null;
 
   return (
     <div ref={ref} className="relative">
@@ -147,10 +150,44 @@ export function DownloadIndicator() {
             </div>
           )}
 
+          {/* Import / scan status */}
+          {(importing || scanning) && (
+            <div
+              className={`p-3 ${active.length > 0 || bulk.length > 0 ? "border-t border-surface-600" : ""}`}
+            >
+              <div className="flex items-center gap-2 text-sm">
+                <svg
+                  className={`h-3.5 w-3.5 shrink-0 animate-spin ${importing ? "text-blue-400" : "text-green-400"}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+                <span
+                  className={`text-xs font-medium ${importing ? "text-blue-300" : "text-green-300"}`}
+                >
+                  {importing ? "Importing volumes..." : "Scanning library..."}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Recent completions */}
           {recent.length > 0 && (
             <div
-              className={`p-3 ${active.length > 0 ? "border-t border-surface-600" : ""}`}
+              className={`p-3 ${active.length > 0 || bulk.length > 0 || importing || scanning ? "border-t border-surface-600" : ""}`}
             >
               <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-surface-300">
                 Recently Imported

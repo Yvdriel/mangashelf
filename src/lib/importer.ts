@@ -7,6 +7,15 @@ import { getTorrentStatus } from "./deluge";
 import { syncLibrary } from "./scanner";
 import { extractIfNeeded, cleanupTempDir } from "./extractor";
 
+// Use globalThis to share importing state across Next.js module instances
+const _g = globalThis as unknown as { __mangashelf_importing?: boolean };
+export function isImporting(): boolean {
+  return _g.__mangashelf_importing ?? false;
+}
+function setImportingFlag(v: boolean) {
+  _g.__mangashelf_importing = v;
+}
+
 const MANGA_DIR = process.env.MANGA_DIR || "/manga";
 const DOWNLOAD_DIR = "/downloads";
 const DOWNLOAD_CHECK_INTERVAL =
@@ -1179,15 +1188,6 @@ export async function checkAndImportDownloads(): Promise<{
     }
   }
 
-  // Trigger library rescan if anything was imported
-  if (imported > 0) {
-    try {
-      syncLibrary();
-    } catch (e) {
-      console.error("[MangaShelf] Library rescan after import failed:", e);
-    }
-  }
-
   return { imported, failed };
 }
 
@@ -1246,6 +1246,7 @@ export function startBackgroundTasks(): void {
 
   // Import timer: fixed interval for heavy I/O operations
   importTimer = setInterval(async () => {
+    setImportingFlag(true);
     try {
       const bulk = await checkAndImportBulkDownloads();
       const single = await checkAndImportDownloads();
@@ -1256,8 +1257,17 @@ export function startBackgroundTasks(): void {
           `[MangaShelf] Import check: ${totalImported} imported, ${totalFailed} failed`,
         );
       }
+      setImportingFlag(false);
+      if (totalImported > 0) {
+        try {
+          syncLibrary();
+        } catch (e) {
+          console.error("[MangaShelf] Library rescan after import failed:", e);
+        }
+      }
     } catch (e) {
       console.error("[MangaShelf] Import task error:", e);
+      setImportingFlag(false);
     }
   }, DOWNLOAD_CHECK_INTERVAL);
 

@@ -19,7 +19,7 @@ function timeAgo(dateStr: string): string {
 }
 
 export function DownloadsPage() {
-  const { active, bulk, recent } = useDownloadStatus();
+  const { active, bulk, recent, importing, scanning } = useDownloadStatus();
 
   // Group single downloads by manga
   const grouped = new Map<
@@ -43,11 +43,70 @@ export function DownloadsPage() {
     grouped.get(d.mangaId)!.volumes.push(d);
   }
 
-  const hasAnything = active.length > 0 || bulk.length > 0 || recent.length > 0;
+  const hasAnything =
+    active.length > 0 ||
+    bulk.length > 0 ||
+    recent.length > 0 ||
+    importing ||
+    scanning;
 
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">Downloads</h1>
+
+      {/* Status banners */}
+      {importing && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
+          <svg
+            className="h-4 w-4 shrink-0 animate-spin text-blue-400"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
+          </svg>
+          <span className="text-sm font-medium text-blue-300">
+            Importing downloaded volumes...
+          </span>
+        </div>
+      )}
+      {scanning && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3">
+          <svg
+            className="h-4 w-4 shrink-0 animate-spin text-green-400"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
+          </svg>
+          <span className="text-sm font-medium text-green-300">
+            Scanning library...
+          </span>
+        </div>
+      )}
 
       {!hasAnything && (
         <div className="flex flex-col items-center justify-center rounded-lg border border-surface-600 bg-surface-700 py-16">

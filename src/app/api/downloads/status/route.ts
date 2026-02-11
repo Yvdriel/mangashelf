@@ -2,6 +2,8 @@ import { db } from "@/db";
 import { managedManga, managedVolume } from "@/db/schema";
 import { eq, inArray, and, gte, isNotNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { isScanning } from "@/lib/scanner";
+import { isImporting } from "@/lib/importer";
 
 export const dynamic = "force-dynamic";
 
@@ -74,8 +76,13 @@ export async function GET() {
     titleEnglish: string | null;
   }) => r.titleNative || r.titleRomaji || r.titleEnglish || "Unknown";
 
+  const importing = isImporting();
+  const scanning = isScanning();
   const hasActiveDownloads =
-    activeVolumes.length > 0 || bulkDownloads.length > 0;
+    activeVolumes.length > 0 ||
+    bulkDownloads.length > 0 ||
+    importing ||
+    scanning;
 
   return NextResponse.json({
     active: activeVolumes.map((r) => ({
@@ -105,6 +112,8 @@ export async function GET() {
       status: r.status,
       completedAt: r.completedAt,
     })),
+    importing,
+    scanning,
     hasActiveDownloads,
     summary: {
       activeCount: activeVolumes.length,

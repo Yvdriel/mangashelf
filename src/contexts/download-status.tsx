@@ -8,6 +8,7 @@ import {
   useCallback,
   useRef,
 } from "react";
+import { useRouter } from "next/navigation";
 
 interface ActiveDownload {
   managedVolumeId: number;
@@ -43,6 +44,8 @@ interface DownloadStatusData {
   active: ActiveDownload[];
   bulk: BulkDownload[];
   recent: RecentDownload[];
+  importing: boolean;
+  scanning: boolean;
   hasActiveDownloads: boolean;
   summary: { activeCount: number; bulkCount: number; recentCount: number };
 }
@@ -55,6 +58,8 @@ const DownloadStatusContext = createContext<DownloadStatus>({
   active: [],
   bulk: [],
   recent: [],
+  importing: false,
+  scanning: false,
   hasActiveDownloads: false,
   summary: { activeCount: 0, bulkCount: 0, recentCount: 0 },
   refresh: () => {},
@@ -76,11 +81,15 @@ export function DownloadStatusProvider({
     active: [],
     bulk: [],
     recent: [],
+    importing: false,
+    scanning: false,
     hasActiveDownloads: false,
     summary: { activeCount: 0, bulkCount: 0, recentCount: 0 },
   });
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const visibleRef = useRef(true);
+  const prevScanningRef = useRef(false);
+  const router = useRouter();
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -146,6 +155,14 @@ export function DownloadStatusProvider({
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [fetchStatus, scheduleNext]);
+
+  // Auto-refresh page when scanning completes (new manga now visible)
+  useEffect(() => {
+    if (prevScanningRef.current && !status.scanning) {
+      router.refresh();
+    }
+    prevScanningRef.current = status.scanning;
+  }, [status.scanning, router]);
 
   const value = useCallback(() => ({ ...status, refresh }), [status, refresh]);
 

@@ -5,6 +5,16 @@ import { manga, volume } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
 const MANGA_DIR = process.env.MANGA_DIR || "/manga";
+
+// Use globalThis to share state across Next.js module instances
+// (instrumentation.ts and API routes may load separate copies of this module)
+const g = globalThis as unknown as { __mangashelf_scanning?: boolean };
+export function isScanning(): boolean {
+  return g.__mangashelf_scanning ?? false;
+}
+function setScanningFlag(v: boolean) {
+  g.__mangashelf_scanning = v;
+}
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
 const MANGA_FOLDER_RE = /^(.+?)\s*\[anilist-(\d+)\]$/;
@@ -91,6 +101,19 @@ function scanFilesystem(): ScannedManga[] {
 }
 
 export function syncLibrary(): {
+  added: number;
+  updated: number;
+  removed: number;
+} {
+  setScanningFlag(true);
+  try {
+    return _syncLibraryInner();
+  } finally {
+    setScanningFlag(false);
+  }
+}
+
+function _syncLibraryInner(): {
   added: number;
   updated: number;
   removed: number;

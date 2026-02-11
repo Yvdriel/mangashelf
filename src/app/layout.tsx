@@ -6,7 +6,6 @@ import { DownloadIndicator } from "@/components/download-indicator";
 import { GlobalDownloadProgress } from "@/components/global-download-progress";
 import { DownloadStatusProvider } from "@/contexts/download-status";
 import { SwRegister } from "@/components/sw-register";
-import { SplashDismiss } from "@/components/splash-dismiss";
 import Link from "next/link";
 import "./globals.css";
 
@@ -44,39 +43,6 @@ export default function RootLayout({
       <body
         className={`${geist.variable} font-[family-name:var(--font-geist)] bg-surface-900 text-surface-50 antialiased`}
       >
-        {/* Inline PWA splash screen — renders before JS/CSS bundles load */}
-        <div
-          id="splash"
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "#1a1a1e",
-            transition: "opacity 0.3s ease-out",
-          }}
-        >
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontSize: "1.75rem",
-                fontWeight: 600,
-                letterSpacing: "-0.025em",
-                color: "#e8a0b4",
-                animation: "splash-pulse 2s ease-in-out infinite",
-              }}
-            >
-              MangaShelf
-            </div>
-          </div>
-          <style
-            dangerouslySetInnerHTML={{
-              __html: `@keyframes splash-pulse{0%,100%{opacity:.6}50%{opacity:1}}`,
-            }}
-          />
-        </div>
         <DownloadStatusProvider>
           <nav className="sticky top-0 z-50 border-b border-surface-600 bg-surface-900/80 backdrop-blur-sm pt-[env(safe-area-inset-top)]">
             <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-[max(1rem,env(safe-area-inset-left))] min-w-0 overflow-hidden">
@@ -99,7 +65,6 @@ export default function RootLayout({
           <main className="mx-auto max-w-7xl px-[max(1rem,env(safe-area-inset-left))] py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">{children}</main>
         </DownloadStatusProvider>
         <SwRegister />
-        <SplashDismiss />
       </body>
     </html>
   );

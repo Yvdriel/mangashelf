@@ -118,7 +118,7 @@ services:
       - IMPORT_INTERVAL=30
       - DOWNLOAD_CHECK_INTERVAL=30
       - MONITOR_INTERVAL=3600
-      - AUTO_DOWNLOAD=true
+      - AUTO_DOWNLOAD=false
     volumes:
       - ./media/manga:/manga
       - mangashelf-data:/data

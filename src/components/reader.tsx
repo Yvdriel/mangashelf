@@ -255,16 +255,18 @@ export function Reader({
 
       {/* Bottom progress bar */}
       <div
-        className={`fixed bottom-0 left-0 right-0 h-0.5 mb-[env(safe-area-inset-bottom)] bg-surface-600 transition-opacity duration-300 ${
+        className={`fixed bottom-0 left-0 right-0 pb-[env(safe-area-inset-bottom)] bg-surface-600 transition-opacity duration-300 ${
           showOverlay ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div
-          className="h-full bg-accent-400 transition-all duration-150"
-          style={{
-            width: `${pageCount > 1 ? (currentPage / (pageCount - 1)) * 100 : 100}%`,
-          }}
-        />
+        <div className="h-0.5 w-full">
+          <div
+            className="h-full bg-accent-400 transition-all duration-150"
+            style={{
+              width: `${pageCount > 1 ? (currentPage / (pageCount - 1)) * 100 : 100}%`,
+            }}
+          />
+        </div>
       </div>
     </div>
   );

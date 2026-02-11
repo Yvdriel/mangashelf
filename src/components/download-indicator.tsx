@@ -82,7 +82,7 @@ export function DownloadIndicator() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-lg border border-surface-600 bg-surface-700 shadow-xl animate-in fade-in slide-in-from-top-2 duration-150">
+        <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-80 overflow-hidden rounded-lg border border-surface-600 bg-surface-700 shadow-xl animate-in fade-in slide-in-from-top-2 duration-150">
           {/* Active downloads */}
           {(active.length > 0 || bulk.length > 0) && (
             <div className="p-3">

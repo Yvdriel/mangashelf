@@ -44,8 +44,8 @@ export default function RootLayout({
         className={`${geist.variable} font-[family-name:var(--font-geist)] bg-surface-900 text-surface-50 antialiased`}
       >
         <DownloadStatusProvider>
-          <nav className="sticky top-0 z-50 border-b border-surface-600 bg-surface-900/80 backdrop-blur-sm">
-            <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
+          <nav className="sticky top-0 z-50 border-b border-surface-600 bg-surface-900/80 backdrop-blur-sm pt-[env(safe-area-inset-top)]">
+            <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-[max(1rem,env(safe-area-inset-left))] min-w-0 overflow-hidden">
               <div className="flex items-center gap-6">
                 <Link
                   href="/"
@@ -62,7 +62,7 @@ export default function RootLayout({
             </div>
           </nav>
           <GlobalDownloadProgress />
-          <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
+          <main className="mx-auto max-w-7xl px-[max(1rem,env(safe-area-inset-left))] py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">{children}</main>
         </DownloadStatusProvider>
         <SwRegister />
       </body>

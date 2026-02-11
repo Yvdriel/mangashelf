@@ -34,9 +34,22 @@ export function ScanButton() {
       <button
         onClick={handleScan}
         disabled={scanning}
-        className="rounded-md bg-surface-600 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-surface-500 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+        className="flex items-center gap-1.5 rounded-md bg-surface-600 px-2 sm:px-3 py-1.5 text-sm font-medium transition-colors hover:bg-surface-500 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
       >
-        {scanning ? "Scanning..." : "Scan Library"}
+        <svg
+          className={`h-4 w-4 shrink-0 ${scanning ? "animate-spin" : ""}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          />
+        </svg>
+        <span className="hidden sm:inline">{scanning ? "Scanning..." : "Scan Library"}</span>
       </button>
     </div>
   );

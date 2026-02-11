@@ -20,7 +20,7 @@ function timeAgo(dateStr: string): string {
 }
 
 export function DownloadIndicator() {
-  const { active, recent, summary } = useDownloadStatus();
+  const { active, bulk, recent, summary } = useDownloadStatus();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -46,7 +46,8 @@ export function DownloadIndicator() {
     return () => document.removeEventListener("keydown", handler);
   }, [open]);
 
-  if (summary.activeCount === 0 && summary.recentCount === 0) return null;
+  const totalActive = summary.activeCount + (summary.bulkCount || 0);
+  if (totalActive === 0 && summary.recentCount === 0) return null;
 
   return (
     <div ref={ref} className="relative">
@@ -67,10 +68,10 @@ export function DownloadIndicator() {
             d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
           />
         </svg>
-        {summary.activeCount > 0 && (
+        {totalActive > 0 && (
           <>
             <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent-400 text-[10px] font-bold text-surface-900">
-              {summary.activeCount}
+              {totalActive}
             </span>
             <span className="absolute -top-0.5 -right-0.5 h-4 w-4 animate-ping rounded-full bg-accent-400 opacity-40" />
           </>
@@ -80,12 +81,40 @@ export function DownloadIndicator() {
       {open && (
         <div className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-lg border border-surface-600 bg-surface-700 shadow-xl animate-in fade-in slide-in-from-top-2 duration-150">
           {/* Active downloads */}
-          {active.length > 0 && (
+          {(active.length > 0 || bulk.length > 0) && (
             <div className="p-3">
               <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-surface-300">
                 Downloading
               </h3>
               <div className="space-y-2.5">
+                {bulk.map((d) => (
+                  <div key={`bulk-${d.mangaId}`}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="truncate font-medium">
+                        {d.mangaTitle}
+                      </span>
+                      <span className="ml-2 shrink-0 rounded-full bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
+                        Bulk
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-500">
+                        <div
+                          className="h-full rounded-full bg-accent-400 transition-all duration-500"
+                          style={{ width: `${d.progress}%` }}
+                        />
+                      </div>
+                      <span className="shrink-0 text-xs text-surface-300">
+                        {Math.round(d.progress)}%
+                      </span>
+                    </div>
+                    {d.downloadSpeed > 0 && (
+                      <p className="mt-0.5 text-[11px] text-surface-400">
+                        {formatSpeed(d.downloadSpeed)}
+                      </p>
+                    )}
+                  </div>
+                ))}
                 {active.map((d) => (
                   <div key={d.managedVolumeId}>
                     <div className="flex items-center justify-between text-sm">
@@ -147,7 +176,7 @@ export function DownloadIndicator() {
           {/* Footer */}
           <div className="border-t border-surface-600 p-2">
             <Link
-              href="/manager"
+              href="/downloads"
               onClick={() => setOpen(false)}
               className="block rounded-md px-3 py-1.5 text-center text-xs font-medium text-surface-300 transition-colors hover:bg-surface-600 hover:text-surface-100"
             >

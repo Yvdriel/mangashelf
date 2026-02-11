@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SearchModal } from "./search-modal";
+import { useDownloadStatus } from "@/contexts/download-status";
 
 interface ManagedMangaData {
   id: number;
@@ -20,6 +21,8 @@ interface ManagedMangaData {
   genres: string[];
   averageScore: number | null;
   bulkTorrentId: string | null;
+  bulkProgress: number;
+  bulkDownloadSpeed: number;
   monitored: boolean;
   lastMonitoredAt: Date | null;
 }
@@ -39,6 +42,13 @@ interface DownloadHistoryItem {
   status: string;
   autoDownloaded: boolean;
   createdAt: Date;
+}
+
+function formatSpeed(bytesPerSec: number): string {
+  if (bytesPerSec < 1024) return `${bytesPerSec} B/s`;
+  if (bytesPerSec < 1024 * 1024)
+    return `${(bytesPerSec / 1024).toFixed(0)} KB/s`;
+  return `${(bytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`;
 }
 
 function formatTimeAgo(date: Date): string {
@@ -87,12 +97,19 @@ export function MangaDetail({
   history: DownloadHistoryItem[];
 }) {
   const router = useRouter();
+  const { bulk: bulkDownloads, refresh: refreshDownloads } =
+    useDownloadStatus();
   const [searchModal, setSearchModal] = useState<{
     volumeNumber?: number;
   } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [checking, setChecking] = useState(false);
   const [approvingId, setApprovingId] = useState<number | null>(null);
+
+  // Live bulk download progress from context (falls back to server-rendered data)
+  const liveBulk = bulkDownloads.find((b) => b.mangaId === manga.id);
+  const bulkProgress = liveBulk?.progress ?? manga.bulkProgress;
+  const bulkSpeed = liveBulk?.downloadSpeed ?? manga.bulkDownloadSpeed;
 
   const title =
     manga.titleNative || manga.titleRomaji || manga.titleEnglish || "";
@@ -149,6 +166,7 @@ export function MangaDetail({
             volumeNumber: vol.volumeNumber,
           }),
         });
+        refreshDownloads();
         router.refresh();
       } catch {
         // silently fail
@@ -279,6 +297,48 @@ export function MangaDetail({
           </div>
         </div>
       </div>
+
+      {/* Bulk download progress */}
+      {manga.bulkTorrentId && (
+        <div className="mb-6 rounded-lg border border-blue-500/30 bg-blue-500/10 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg
+                className="h-4 w-4 text-blue-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+              <span className="text-sm font-medium text-blue-300">
+                Bulk Download in Progress
+              </span>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              {bulkSpeed > 0 && (
+                <span className="text-surface-300">
+                  {formatSpeed(bulkSpeed)}
+                </span>
+              )}
+              <span className="font-medium text-surface-100">
+                {Math.round(bulkProgress)}%
+              </span>
+            </div>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-600">
+            <div
+              className="h-full rounded-full bg-blue-400 transition-all duration-700 ease-out"
+              style={{ width: `${bulkProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Volumes section */}
       <h2 className="mb-4 text-lg font-semibold">

@@ -7,7 +7,9 @@ import clsx from "clsx";
 export function Nav() {
   const pathname = usePathname();
   const isManager = pathname.startsWith("/manager");
-  const isLibrary = !isManager && !pathname.startsWith("/manga/");
+  const isDownloads = pathname.startsWith("/downloads");
+  const isLibrary =
+    !isManager && !isDownloads && !pathname.startsWith("/manga/");
 
   return (
     <div className="flex items-center gap-1">
@@ -58,6 +60,30 @@ export function Nav() {
           />
         </svg>
         Manager
+      </Link>
+      <Link
+        href="/downloads"
+        className={clsx(
+          "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+          isDownloads
+            ? "bg-surface-700 text-accent-300"
+            : "text-surface-200 hover:text-surface-50",
+        )}
+      >
+        <svg
+          className="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
+          />
+        </svg>
+        Downloads
       </Link>
     </div>
   );

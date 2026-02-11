@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import { ScanButton } from "@/components/scan-button";
 import { Nav } from "@/components/nav";
 import { DownloadIndicator } from "@/components/download-indicator";
+import { GlobalDownloadProgress } from "@/components/global-download-progress";
 import { DownloadStatusProvider } from "@/contexts/download-status";
 import { SwRegister } from "@/components/sw-register";
 import Link from "next/link";
@@ -60,6 +61,7 @@ export default function RootLayout({
               </div>
             </div>
           </nav>
+          <GlobalDownloadProgress />
           <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
         </DownloadStatusProvider>
         <SwRegister />

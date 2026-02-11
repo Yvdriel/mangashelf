@@ -87,6 +87,8 @@ export const managedManga = sqliteTable("managed_manga", {
   averageScore: integer("average_score"),
   staff: text("staff"),
   bulkTorrentId: text("bulk_torrent_id"),
+  bulkProgress: integer("bulk_progress").notNull().default(0),
+  bulkDownloadSpeed: integer("bulk_download_speed").notNull().default(0),
   monitored: integer("monitored", { mode: "boolean" }).notNull().default(true),
   lastMonitoredAt: integer("last_monitored_at", { mode: "timestamp" }),
   lastMetadataRefresh: integer("last_metadata_refresh", { mode: "timestamp" }),

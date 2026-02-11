@@ -701,6 +701,45 @@ export async function updateDownloadProgress(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Bulk download progress monitoring
+// ---------------------------------------------------------------------------
+
+export async function updateBulkDownloadProgress(): Promise<boolean> {
+  const bulkMangaList = db
+    .select()
+    .from(managedManga)
+    .where(isNotNull(managedManga.bulkTorrentId))
+    .all();
+
+  if (bulkMangaList.length === 0) return false;
+
+  for (const manga of bulkMangaList) {
+    if (!manga.bulkTorrentId) continue;
+
+    try {
+      const status = await getTorrentStatus(manga.bulkTorrentId);
+      if (!status) continue;
+
+      db.update(managedManga)
+        .set({
+          bulkProgress: Math.round(status.progress),
+          bulkDownloadSpeed: status.downloadSpeed,
+          updatedAt: new Date(),
+        })
+        .where(eq(managedManga.id, manga.id))
+        .run();
+    } catch (e) {
+      console.error(
+        `[MangaShelf] Bulk progress check failed for manga ${manga.id}:`,
+        e,
+      );
+    }
+  }
+
+  return true;
+}
+
+// ---------------------------------------------------------------------------
 // Bulk download import
 // ---------------------------------------------------------------------------
 
@@ -756,7 +795,12 @@ export async function checkAndImportBulkDownloads(): Promise<{
           `[IMPORT] Extraction failed for ${status.name}: ${extraction.error}`,
         );
         db.update(managedManga)
-          .set({ bulkTorrentId: null, updatedAt: new Date() })
+          .set({
+            bulkTorrentId: null,
+            bulkProgress: 0,
+            bulkDownloadSpeed: 0,
+            updatedAt: new Date(),
+          })
           .where(eq(managedManga.id, manga.id))
           .run();
         failed++;
@@ -774,7 +818,12 @@ export async function checkAndImportBulkDownloads(): Promise<{
             `[IMPORT] No volume folders detected in ${extraction.importPath}`,
           );
           db.update(managedManga)
-            .set({ bulkTorrentId: null, updatedAt: new Date() })
+            .set({
+              bulkTorrentId: null,
+              bulkProgress: 0,
+              bulkDownloadSpeed: 0,
+              updatedAt: new Date(),
+            })
             .where(eq(managedManga.id, manga.id))
             .run();
           failed++;
@@ -862,7 +911,12 @@ export async function checkAndImportBulkDownloads(): Promise<{
 
         // Clear bulkTorrentId after processing
         db.update(managedManga)
-          .set({ bulkTorrentId: null, updatedAt: new Date() })
+          .set({
+            bulkTorrentId: null,
+            bulkProgress: 0,
+            bulkDownloadSpeed: 0,
+            updatedAt: new Date(),
+          })
           .where(eq(managedManga.id, manga.id))
           .run();
       } finally {
@@ -876,7 +930,12 @@ export async function checkAndImportBulkDownloads(): Promise<{
         e,
       );
       db.update(managedManga)
-        .set({ bulkTorrentId: null, updatedAt: new Date() })
+        .set({
+          bulkTorrentId: null,
+          bulkProgress: 0,
+          bulkDownloadSpeed: 0,
+          updatedAt: new Date(),
+        })
         .where(eq(managedManga.id, manga.id))
         .run();
       failed++;
@@ -1136,18 +1195,58 @@ export async function checkAndImportDownloads(): Promise<{
 // Background tasks
 // ---------------------------------------------------------------------------
 
-let backgroundTimer: ReturnType<typeof setInterval> | null = null;
+const PROGRESS_INTERVAL_FAST = 1_000; // 1s when downloads active
+const PROGRESS_INTERVAL_SLOW = 5_000; // 5s when idle (cheap DB check only)
+
+let progressTimer: ReturnType<typeof setTimeout> | null = null;
+let importTimer: ReturnType<typeof setInterval> | null = null;
+let _running = false;
+
+async function progressTick(): Promise<void> {
+  try {
+    const downloading = db
+      .select()
+      .from(managedVolume)
+      .where(eq(managedVolume.status, "downloading"))
+      .all();
+
+    const hasSingleDownloads = downloading.length > 0;
+    if (hasSingleDownloads) {
+      await updateDownloadProgress();
+    }
+
+    const hasBulkDownloads = await updateBulkDownloadProgress();
+    const hasActive = hasSingleDownloads || hasBulkDownloads;
+
+    const nextInterval = hasActive
+      ? PROGRESS_INTERVAL_FAST
+      : PROGRESS_INTERVAL_SLOW;
+
+    if (_running) {
+      progressTimer = setTimeout(progressTick, nextInterval);
+    }
+  } catch (e) {
+    console.error("[MangaShelf] Progress tick error:", e);
+    if (_running) {
+      progressTimer = setTimeout(progressTick, PROGRESS_INTERVAL_SLOW);
+    }
+  }
+}
 
 export function startBackgroundTasks(): void {
-  if (backgroundTimer) return;
+  if (_running) return;
+  _running = true;
 
   console.log(
-    `[MangaShelf] Starting download check every ${DOWNLOAD_CHECK_INTERVAL / 1000}s`,
+    `[MangaShelf] Starting background tasks (progress: adaptive 1s/${DOWNLOAD_CHECK_INTERVAL / 1000}s, import: ${DOWNLOAD_CHECK_INTERVAL / 1000}s)`,
   );
 
-  backgroundTimer = setInterval(async () => {
+  // Progress timer: adaptive speed (starts with a fast tick to detect state)
+  progressTimer = setTimeout(progressTick, PROGRESS_INTERVAL_FAST);
+
+  // Import timer: fixed interval for heavy I/O operations
+  importTimer = setInterval(async () => {
     try {
-      await updateDownloadProgress();
       const bulk = await checkAndImportBulkDownloads();
       const single = await checkAndImportDownloads();
       const totalImported = bulk.imported + single.imported;
@@ -1158,14 +1257,17 @@ export function startBackgroundTasks(): void {
         );
       }
     } catch (e) {
-      console.error("[MangaShelf] Background task error:", e);
+      console.error("[MangaShelf] Import task error:", e);
     }
   }, DOWNLOAD_CHECK_INTERVAL);
 
   // Graceful shutdown
   const cleanup = () => {
-    if (backgroundTimer) clearInterval(backgroundTimer);
-    backgroundTimer = null;
+    _running = false;
+    if (progressTimer) clearTimeout(progressTimer);
+    progressTimer = null;
+    if (importTimer) clearInterval(importTimer);
+    importTimer = null;
   };
   process.on("SIGTERM", cleanup);
   process.on("SIGINT", cleanup);

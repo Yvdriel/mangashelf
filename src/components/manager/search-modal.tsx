@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useDownloadStatus } from "@/contexts/download-status";
 
 interface TorrentResult {
   title: string;
@@ -45,6 +46,7 @@ export function SearchModal({
   volumeNumber?: number;
   onClose: () => void;
 }) {
+  const { refresh } = useDownloadStatus();
   const [results, setResults] = useState<TorrentResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +101,7 @@ export function SearchModal({
       });
       if (res.ok) {
         setDownloadedIdxs((prev) => new Set([...prev, idx]));
+        refresh();
       }
     } catch {
       // silently fail

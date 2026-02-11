@@ -105,6 +105,8 @@ services:
 
   mangashelf:
     build: .
+    # For production
+    # image: ghcr.io/yvdriel/mangashelf:latest
     container_name: mangashelf
     environment:
       - TZ=Europe/Amsterdam

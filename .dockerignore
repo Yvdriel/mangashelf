@@ -1,7 +1,23 @@
+# Dependencies & build output
 node_modules
 .next
+
+# Git
 .git
+
+# Media & data (mounted as runtime volumes)
+media
+downloads
 data
 manga
-*.md
+
+# Config for other services (jackett, deluge, etc.)
+config
+
+# Environment & misc
+.env
 .env.local
+*.md
+.DS_Store
+.claude
+tsconfig.tsbuildinfo

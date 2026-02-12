@@ -3,10 +3,16 @@ import { db } from "@/db";
 import { managedManga, managedVolume } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getMangaDetail } from "@/lib/anilist";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const session = await requireAdmin();
+  if (!session) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const allManga = db
     .select()
     .from(managedManga)
@@ -41,6 +47,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const session = await requireAdmin();
+  if (!session) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const body = await request.json();
   const { anilistId } = body;
 

@@ -121,6 +121,10 @@ services:
       - DOWNLOAD_CHECK_INTERVAL=30
       - MONITOR_INTERVAL=3600
       - AUTO_DOWNLOAD=false
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - AUTH_RP_ID=${AUTH_RP_ID:-localhost}
+      - AUTH_ORIGIN=${AUTH_ORIGIN:-http://localhost:3000}
+      - BETTER_AUTH_BASE_URL=${BETTER_AUTH_BASE_URL:-http://localhost:3000}
     volumes:
       - ./media/manga:/manga
       - mangashelf-data:/data

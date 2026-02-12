@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { refreshReleasingManga, runMonitoringCycle } from "@/lib/monitor";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 export async function POST() {
+  const session = await requireAdmin();
+  if (!session) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   try {
     const newVolumes = await refreshReleasingManga();
     const result = await runMonitoringCycle();

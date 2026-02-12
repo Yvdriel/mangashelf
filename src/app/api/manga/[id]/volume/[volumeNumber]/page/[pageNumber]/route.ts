@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { manga, volume } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { getRequiredSession } from "@/lib/auth-helpers";
 import fs from "fs";
 import path from "path";
 import { getThumbnail } from "@/lib/thumbnails";
@@ -30,6 +31,11 @@ export async function GET(
     params: Promise<{ id: string; volumeNumber: string; pageNumber: string }>;
   },
 ) {
+  const session = await getRequiredSession();
+  if (!session) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
   const { id, volumeNumber, pageNumber } = await params;
   const { searchParams } = new URL(request.url);
   const thumbSize = searchParams.get("thumb") as "sm" | "md" | null;

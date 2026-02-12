@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { db } from "@/db";
 import { manga, volume } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 const MANGA_DIR = process.env.MANGA_DIR || "/manga";
 

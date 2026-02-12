@@ -1,8 +1,9 @@
 import { db } from "@/db";
 import { manga, volume, readingProgress } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Reader } from "@/components/reader";
+import { getSession } from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,11 @@ export default async function ReaderPage({
   params: Promise<{ id: string; volumeNumber: string }>;
   searchParams: Promise<{ p?: string }>;
 }) {
+  const session = await getSession();
+  if (!session) {
+    redirect("/login");
+  }
+
   const { id, volumeNumber } = await params;
   const { p } = await searchParams;
   const mangaId = parseInt(id, 10);
@@ -37,6 +43,7 @@ export default async function ReaderPage({
     .from(readingProgress)
     .where(
       and(
+        eq(readingProgress.userId, session.user.id),
         eq(readingProgress.mangaId, mangaId),
         eq(readingProgress.volumeId, currentVolume.id),
       ),

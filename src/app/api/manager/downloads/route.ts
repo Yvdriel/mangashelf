@@ -2,10 +2,16 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { downloadHistory, managedManga } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const session = await requireAdmin();
+  if (!session) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const downloads = db
     .select({
       id: downloadHistory.id,

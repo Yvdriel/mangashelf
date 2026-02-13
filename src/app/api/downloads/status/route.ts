@@ -4,10 +4,15 @@ import { eq, inArray, and, gte, isNotNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { isScanning } from "@/lib/scanner";
 import { isImporting } from "@/lib/importer";
+import { getRequiredSession } from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const session = await getRequiredSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   // Active downloads: status is "downloading" or "downloaded" (awaiting import)
   const activeVolumes = db
     .select({

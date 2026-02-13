@@ -12,7 +12,9 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@better-auth/passkey": "^1.4.18",
     "adm-zip": "^0.5.16",
+    "better-auth": "^1.4.18",
     "better-sqlite3": "^12.6.2",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.1",

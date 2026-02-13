@@ -2,11 +2,17 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { readingProgress, volume } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { getRequiredSession } from "@/lib/auth-helpers";
 
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ mangaId: string; volumeId: string }> },
 ) {
+  const session = await getRequiredSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { mangaId, volumeId } = await params;
   const mId = parseInt(mangaId, 10);
   const vId = parseInt(volumeId, 10);
@@ -21,7 +27,11 @@ export async function PUT(
     .select()
     .from(readingProgress)
     .where(
-      and(eq(readingProgress.mangaId, mId), eq(readingProgress.volumeId, vId)),
+      and(
+        eq(readingProgress.userId, session.user.id),
+        eq(readingProgress.mangaId, mId),
+        eq(readingProgress.volumeId, vId),
+      ),
     )
     .get();
 
@@ -38,6 +48,7 @@ export async function PUT(
   } else {
     db.insert(readingProgress)
       .values({
+        userId: session.user.id,
         mangaId: mId,
         volumeId: vId,
         currentPage,

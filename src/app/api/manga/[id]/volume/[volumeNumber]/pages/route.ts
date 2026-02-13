@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { manga, volume } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { getRequiredSession } from "@/lib/auth-helpers";
 import fs from "fs";
 import path from "path";
 
@@ -18,6 +19,11 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string; volumeNumber: string }> },
 ) {
+  const session = await getRequiredSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id, volumeNumber } = await params;
   const mangaId = parseInt(id, 10);
   const volNum = parseInt(volumeNumber, 10);

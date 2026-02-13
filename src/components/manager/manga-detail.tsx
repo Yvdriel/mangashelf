@@ -174,7 +174,7 @@ export function MangaDetail({
         setApprovingId(null);
       }
     },
-    [manga.id, router],
+    [manga.id, router, refreshDownloads],
   );
 
   return (
@@ -206,10 +206,10 @@ export function MangaDetail({
               <img
                 src={manga.coverImage}
                 alt={title}
-                className="aspect-[2/3] w-full object-cover"
+                className="aspect-2/3 w-full object-cover"
               />
             ) : (
-              <div className="flex aspect-[2/3] items-center justify-center text-surface-300">
+              <div className="flex aspect-2/3 items-center justify-center text-surface-300">
                 No Cover
               </div>
             )}

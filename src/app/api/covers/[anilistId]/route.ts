@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { managedManga } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { getRequiredSession } from "@/lib/auth-helpers";
 import { getCachedCover } from "@/lib/cover-cache";
 import { getThumbnail } from "@/lib/thumbnails";
 import fs from "fs";
@@ -10,6 +11,11 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ anilistId: string }> },
 ) {
+  const session = await getRequiredSession();
+  if (!session) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
   const { anilistId } = await params;
   const id = parseInt(anilistId, 10);
   if (isNaN(id)) {

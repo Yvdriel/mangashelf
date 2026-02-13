@@ -5,12 +5,18 @@ import {
   managedManga,
   managedVolume,
 } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { LibraryFilter } from "@/components/library-filter";
+import { getSession } from "@/lib/auth-helpers";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export default function LibraryPage() {
+export default async function LibraryPage() {
+  const session = await getSession();
+  if (!session) {
+    redirect("/login");
+  }
   const allManga = db
     .select({
       id: manga.id,
@@ -27,7 +33,11 @@ export default function LibraryPage() {
     .orderBy(manga.title)
     .all();
 
-  const allProgress = db.select().from(readingProgress).all();
+  const allProgress = db
+    .select()
+    .from(readingProgress)
+    .where(eq(readingProgress.userId, session.user.id))
+    .all();
   const progressByManga = new Map<number, (typeof allProgress)[number][]>();
   for (const p of allProgress) {
     const list = progressByManga.get(p.mangaId) ?? [];

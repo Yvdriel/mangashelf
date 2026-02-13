@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { authClient } from "@/lib/auth-client";
+import QRCode from "qrcode";
 
 interface AccountSettingsProps {
-  userId: string;
   userName: string;
   userEmail: string;
 }
@@ -206,6 +206,7 @@ function TwoFactorSection() {
     "idle" | "setup" | "verify" | "enabled" | "backup"
   >("idle");
   const [totpURI, setTotpURI] = useState("");
+  const [qrDataUrl, setQrDataUrl] = useState("");
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -217,6 +218,16 @@ function TwoFactorSection() {
   useEffect(() => {
     if (is2FAEnabled) setStep("enabled");
   }, [is2FAEnabled]);
+
+  useEffect(() => {
+    if (totpURI) {
+      QRCode.toDataURL(totpURI, { width: 200, margin: 2 })
+        .then(setQrDataUrl)
+        .catch(() => setError("Failed to generate QR code"));
+    } else {
+      setQrDataUrl("");
+    }
+  }, [totpURI]);
 
   async function handleEnable() {
     setLoading(true);
@@ -348,13 +359,18 @@ function TwoFactorSection() {
             6-digit code below.
           </p>
           <div className="flex justify-center rounded-lg bg-white p-4">
-            {/* Render QR as an img using Google Charts API for simplicity */}
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(totpURI)}`}
-              alt="TOTP QR Code"
-              width={200}
-              height={200}
-            />
+            {qrDataUrl ? (
+              <img
+                src={qrDataUrl}
+                alt="TOTP QR Code"
+                width={200}
+                height={200}
+              />
+            ) : (
+              <div className="flex items-center justify-center w-[200px] h-[200px]">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-surface-400 border-t-accent-400" />
+              </div>
+            )}
           </div>
           <div className="rounded-lg bg-surface-700 p-3">
             <p className="text-xs text-surface-300 mb-1">Manual entry key:</p>

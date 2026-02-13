@@ -14,7 +14,6 @@ export default async function AccountSettingsPage() {
     <div>
       <h1 className="text-xl font-bold mb-6">Account Settings</h1>
       <AccountSettings
-        userId={session.user.id}
         userName={session.user.name}
         userEmail={session.user.email}
       />

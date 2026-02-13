@@ -40,8 +40,8 @@ export function AdminPanel() {
         setUsers(data.users as User[]);
         setTotal(data.total);
       }
-    } catch {
-      // ignore
+    } catch (e) {
+      console.error("Failed to load users:", e);
     }
     setLoading(false);
   }, [search]);
@@ -134,7 +134,8 @@ function CreateUserForm({
         return;
       }
       onCreated();
-    } catch {
+    } catch (e) {
+      console.error("Failed to create user:", e);
       setError("Failed to create user");
     }
     setLoading(false);
@@ -216,14 +217,17 @@ function CreateUserForm({
 function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
   const [actionsOpen, setActionsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleSetRole(newRole: "user" | "admin") {
     setLoading(true);
+    setError("");
     try {
       await authClient.admin.setRole({ userId: user.id, role: newRole });
       onUpdate();
-    } catch {
-      // ignore
+    } catch (e) {
+      console.error("Failed to set role:", e);
+      setError("Failed to update role");
     }
     setLoading(false);
     setActionsOpen(false);
@@ -232,14 +236,16 @@ function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
   async function handleBan() {
     if (!confirm(`Ban ${user.name}?`)) return;
     setLoading(true);
+    setError("");
     try {
       await authClient.admin.banUser({
         userId: user.id,
         banReason: "Banned by admin",
       });
       onUpdate();
-    } catch {
-      // ignore
+    } catch (e) {
+      console.error("Failed to ban user:", e);
+      setError("Failed to ban user");
     }
     setLoading(false);
     setActionsOpen(false);
@@ -247,11 +253,13 @@ function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
 
   async function handleUnban() {
     setLoading(true);
+    setError("");
     try {
       await authClient.admin.unbanUser({ userId: user.id });
       onUpdate();
-    } catch {
-      // ignore
+    } catch (e) {
+      console.error("Failed to unban user:", e);
+      setError("Failed to unban user");
     }
     setLoading(false);
     setActionsOpen(false);
@@ -259,10 +267,12 @@ function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
 
   async function handleRevokeSessions() {
     setLoading(true);
+    setError("");
     try {
       await authClient.admin.revokeUserSessions({ userId: user.id });
-    } catch {
-      // ignore
+    } catch (e) {
+      console.error("Failed to revoke sessions:", e);
+      setError("Failed to revoke sessions");
     }
     setLoading(false);
     setActionsOpen(false);
@@ -276,11 +286,13 @@ function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
     )
       return;
     setLoading(true);
+    setError("");
     try {
       await authClient.admin.removeUser({ userId: user.id });
       onUpdate();
-    } catch {
-      // ignore
+    } catch (e) {
+      console.error("Failed to remove user:", e);
+      setError("Failed to remove user");
     }
     setLoading(false);
     setActionsOpen(false);
@@ -319,6 +331,7 @@ function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
             )}
           </div>
           <p className="text-xs text-surface-300 truncate">{user.email}</p>
+          {error && <p className="text-xs text-red-400 mt-0.5">{error}</p>}
         </div>
       </div>
 

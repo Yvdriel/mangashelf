@@ -7,16 +7,8 @@ export async function getSession() {
   });
 }
 
-export async function getRequiredSession() {
-  const session = await getSession();
-  if (!session) {
-    return null;
-  }
-  return session;
-}
-
 export async function requireAdmin() {
-  const session = await getRequiredSession();
+  const session = await getSession();
   if (!session) return null;
   if (session.user.role !== "admin") return null;
   return session;

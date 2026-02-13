@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import "tailwindcss/index.css";
 
 @theme inline {
   --color-accent-50: oklch(0.97 0.014 350);

@@ -61,11 +61,10 @@ export const auth = betterAuth({
               },
             };
           }
-          // After first user, Better Auth admin plugin handles authorization
-          // for admin.createUser() calls. Direct signUp attempts from
-          // non-admin context will still go through — we block those
-          // at the API level via the setup-status check + disabled signup UI.
-          return undefined;
+          // Block direct signup attempts after initial setup.
+          // Admin user creation via admin.createUser() validates admin
+          // authorization before reaching this hook, so it still works.
+          throw new Error("Registration is closed");
         },
       },
     },

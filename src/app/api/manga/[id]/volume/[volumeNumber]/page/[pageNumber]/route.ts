@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { manga, volume } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { getRequiredSession } from "@/lib/auth-helpers";
+import { getSession } from "@/lib/auth-helpers";
 import fs from "fs";
 import path from "path";
 import { getThumbnail } from "@/lib/thumbnails";
@@ -31,7 +31,7 @@ export async function GET(
     params: Promise<{ id: string; volumeNumber: string; pageNumber: string }>;
   },
 ) {
-  const session = await getRequiredSession();
+  const session = await getSession();
   if (!session) {
     return new NextResponse("Unauthorized", { status: 401 });
   }

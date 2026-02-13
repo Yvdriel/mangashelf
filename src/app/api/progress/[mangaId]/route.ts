@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { readingProgress } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { getRequiredSession } from "@/lib/auth-helpers";
+import { getSession } from "@/lib/auth-helpers";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ mangaId: string }> },
 ) {
-  const session = await getRequiredSession();
+  const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

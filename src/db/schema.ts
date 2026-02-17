@@ -316,3 +316,36 @@ export const downloadHistory = sqliteTable("download_history", {
     .notNull()
     .default(sql`(unixepoch())`),
 });
+
+// --- Import history tables ---
+
+export const importHistory = sqliteTable("import_history", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  mangaId: integer("manga_id").references(() => manga.id),
+  mangaTitle: text("manga_title").notNull(),
+  sourceType: text("source_type").notNull(), // "upload" | "filesystem" | "automated"
+  sourcePath: text("source_path").notNull(),
+  volumesImported: integer("volumes_imported").notNull(),
+  pagesImported: integer("pages_imported").notNull(),
+  totalSizeBytes: integer("total_size_bytes").notNull(),
+  mode: text("mode").notNull(), // "copy" | "move"
+  status: text("status").notNull(), // "completed" | "partial" | "failed"
+  errorMessage: text("error_message"),
+  userId: text("user_id").references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+export const importHistoryVolume = sqliteTable("import_history_volume", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  importId: integer("import_id")
+    .notNull()
+    .references(() => importHistory.id, { onDelete: "cascade" }),
+  volumeNumber: integer("volume_number").notNull(),
+  pageCount: integer("page_count").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  sourcePath: text("source_path").notNull(),
+  status: text("status").notNull(), // "imported" | "replaced" | "skipped" | "failed"
+  errorMessage: text("error_message"),
+});

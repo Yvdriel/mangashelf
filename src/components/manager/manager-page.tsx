@@ -233,15 +233,23 @@ export function ManagerPage({
       {/* Managed manga library */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Managed Library</h2>
-        {managedManga.length > 0 && (
-          <button
-            onClick={handleRunMonitor}
-            disabled={runningMonitor}
-            className="rounded-md border border-surface-500 px-3 py-1.5 text-xs font-medium text-surface-200 transition-colors hover:bg-surface-700 disabled:opacity-50"
+        <div className="flex items-center gap-2">
+          <Link
+            href="/manager/import"
+            className="rounded-md border border-surface-500 px-3 py-1.5 text-xs font-medium text-surface-200 transition-colors hover:bg-surface-700"
           >
-            {runningMonitor ? "Monitoring..." : "Run Monitor"}
-          </button>
-        )}
+            Manual Import
+          </Link>
+          {managedManga.length > 0 && (
+            <button
+              onClick={handleRunMonitor}
+              disabled={runningMonitor}
+              className="rounded-md border border-surface-500 px-3 py-1.5 text-xs font-medium text-surface-200 transition-colors hover:bg-surface-700 disabled:opacity-50"
+            >
+              {runningMonitor ? "Monitoring..." : "Run Monitor"}
+            </button>
+          )}
+        </div>
       </div>
       {managedManga.length === 0 ? (
         <p className="text-sm text-surface-300">

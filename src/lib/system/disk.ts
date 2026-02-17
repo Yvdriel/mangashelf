@@ -2,6 +2,7 @@
  * Disk space and file size utilities for the status page.
  */
 
+import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
 
@@ -57,17 +58,37 @@ function calcDirSize(dir: string): number {
   return total;
 }
 
-export function getLibraryDiskInfo(): LibraryDiskInfo {
-  let totalBytes = 0;
-  let freeBytes = 0;
-
+/**
+ * Get partition total/available bytes using `df`.
+ *
+ * Node.js `statfsSync` only exposes `bsize` (preferred I/O block size) but
+ * reports `blocks`/`bavail` in units of `frsize` (fragment size) which it does
+ * NOT expose.  On Linux/Docker these two values differ (e.g. bsize=1048576,
+ * frsize=4096), making `bsize * blocks` wildly incorrect.  `df -k` always
+ * reports in 1K-blocks and handles this correctly on every platform.
+ */
+function getPartitionBytes(dir: string): { total: number; free: number } {
   try {
-    const stats = fs.statfsSync(MANGA_DIR);
-    totalBytes = stats.bsize * stats.blocks;
-    freeBytes = stats.bsize * stats.bavail;
+    // -k = 1K-blocks, -P = POSIX portable output (single header + data line)
+    const out = execSync(`df -kP "${dir}"`, {
+      encoding: "utf-8",
+      timeout: 5000,
+    });
+    const lines = out.trim().split("\n");
+    if (lines.length < 2) return { total: 0, free: 0 };
+    // POSIX format: Filesystem 1024-blocks Used Available Capacity Mounted-on
+    const parts = lines[1].split(/\s+/);
+    const totalKB = parseInt(parts[1], 10);
+    const availKB = parseInt(parts[3], 10);
+    if (isNaN(totalKB) || isNaN(availKB)) return { total: 0, free: 0 };
+    return { total: totalKB * 1024, free: availKB * 1024 };
   } catch {
-    // statfsSync not available or dir doesn't exist
+    return { total: 0, free: 0 };
   }
+}
+
+export function getLibraryDiskInfo(): LibraryDiskInfo {
+  const { total: totalBytes, free: freeBytes } = getPartitionBytes(MANGA_DIR);
 
   // Library size with caching
   if (Date.now() - librarySizeCache.cachedAt > LIBRARY_SIZE_CACHE_TTL) {

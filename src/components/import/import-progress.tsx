@@ -29,6 +29,11 @@ export function ImportProgress({ importId, onReset }: ImportProgressProps) {
     const es = new EventSource(`/api/import/progress/${importId}`);
     eventSourceRef.current = es;
 
+    es.addEventListener("import_start", (e) => {
+      const data = JSON.parse(e.data);
+      setTotalVolumes(data.totalVolumes);
+    });
+
     es.addEventListener("volume_start", (e) => {
       const data = JSON.parse(e.data);
       setCurrentVolume(data.currentVolume);
@@ -122,7 +127,9 @@ export function ImportProgress({ importId, onReset }: ImportProgressProps) {
                 Importing...
               </h3>
               <span className="text-sm text-surface-200">
-                Volume {currentVolume} of {totalVolumes}
+                {currentVolume > 0
+                  ? `Volume ${currentVolume} of ${totalVolumes}`
+                  : `Preparing ${totalVolumes} volume${totalVolumes !== 1 ? "s" : ""}...`}
               </span>
             </div>
             <div className="h-2 rounded-full bg-surface-600 overflow-hidden">

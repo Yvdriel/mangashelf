@@ -80,6 +80,15 @@ export async function GET(
         const doImport =
           config.mode === "move" ? importVolumeMove : importVolume;
 
+        // Send initial event with total count so the UI shows 0/N immediately
+        send("import_start", { totalVolumes });
+
+        // Helper to yield control so the stream flushes SSE events to the client
+        const flush = () =>
+          new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+        await flush();
+
         for (const volConfig of config.volumes) {
           if (volConfig.action === "skip") continue;
 
@@ -93,6 +102,7 @@ export async function GET(
             currentVolume: completedVolumes + 1,
             totalVolumes,
           });
+          await flush();
 
           try {
             // Handle "replace" — move existing volume to trash
@@ -160,6 +170,7 @@ export async function GET(
                 completedVolumes,
                 totalVolumes,
               });
+              await flush();
             } else {
               volumeResults.push({
                 volumeNumber: volConfig.volumeNumber,
@@ -174,6 +185,7 @@ export async function GET(
                 volumeNumber: volConfig.volumeNumber,
                 error: "No image files found in volume folder",
               });
+              await flush();
             }
           } catch (e) {
             volumeResults.push({
@@ -189,6 +201,7 @@ export async function GET(
               volumeNumber: volConfig.volumeNumber,
               error: String(e),
             });
+            await flush();
           }
         }
 

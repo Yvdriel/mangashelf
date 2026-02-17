@@ -8,6 +8,7 @@ import {
 } from "@/lib/system/disk";
 import { getDatabaseStats } from "@/lib/system/db-stats";
 import { runHealthChecks } from "@/lib/system/health-checks";
+import { checkForUpdates } from "@/lib/system/version";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +17,11 @@ export async function GET() {
   if (!session)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  // Use cached service results (no force)
-  const services = await checkAllServices(false);
+  // Use cached results (no force)
+  const [services, versionCheck] = await Promise.all([
+    checkAllServices(false),
+    checkForUpdates(),
+  ]);
   const disk = getLibraryDiskInfo();
   const database = getDatabaseInfo();
   const staging = getStagingInfo();
@@ -29,6 +33,7 @@ export async function GET() {
     database,
     staging,
     dbStats,
+    versionCheck,
   });
 
   const errors = checks.filter((c) => c.severity === "error").length;

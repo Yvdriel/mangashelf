@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm";
 import type { ServiceCheckResult } from "./service-checks";
 import type { LibraryDiskInfo, StagingInfo, DatabaseInfo } from "./disk";
 import type { DatabaseStats } from "./db-stats";
+import type { VersionCheckResult } from "./version";
 import { getTaskStates } from "../background/task-registry";
 
 export interface HealthCheck {
@@ -36,6 +37,7 @@ export function runHealthChecks(context: {
   database: DatabaseInfo;
   staging: StagingInfo;
   dbStats: DatabaseStats;
+  versionCheck?: VersionCheckResult;
 }): HealthCheck[] {
   const checks: HealthCheck[] = [];
   const { services, disk, database, staging, dbStats } = context;
@@ -346,6 +348,21 @@ export function runHealthChecks(context: {
       category: "services",
       title: "AniList rate limit low",
       message: `Only ${rateLimitRemaining} AniList API requests remaining. Searches may be throttled.`,
+    });
+  }
+
+  // Update available
+  if (context.versionCheck?.updateAvailable === true) {
+    const current = context.versionCheck.current?.shortSha ?? "unknown";
+    const latest = context.versionCheck.latest?.shortSha;
+    checks.push({
+      id: "update-available",
+      severity: "info",
+      category: "configuration",
+      title: "Update available",
+      message: latest
+        ? `A newer version is available. Current: ${current}, Latest: ${latest}.`
+        : `A newer version is available. Current: ${current}.`,
     });
   }
 

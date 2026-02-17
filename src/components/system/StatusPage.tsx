@@ -24,6 +24,7 @@ interface SystemStatus {
   tasks: TaskState[];
   system: SystemInfo;
   health: HealthCheck[];
+  version: VersionCheckResult;
 }
 
 export interface ServiceStatus {
@@ -79,6 +80,8 @@ export interface TaskState {
 
 export interface SystemInfo {
   version: string;
+  commitSha: string | null;
+  buildDate: string | null;
   nodeVersion: string;
   platform: string;
   architecture: string;
@@ -87,6 +90,20 @@ export interface SystemInfo {
   environment: string;
   docker: boolean;
   config: Record<string, unknown>;
+}
+
+export interface VersionCheckResult {
+  current: {
+    commitSha: string;
+    shortSha: string;
+    buildDate: string | null;
+  } | null;
+  latest: {
+    commitSha: string;
+    shortSha: string;
+  } | null;
+  updateAvailable: boolean | null;
+  checkedAt: string | null;
 }
 
 export interface HealthCheck {
@@ -230,7 +247,7 @@ export function StatusPage() {
       {/* System About */}
       <section>
         <h2 className="mb-4 text-lg font-medium text-surface-100">About</h2>
-        <SystemAbout system={data.system} />
+        <SystemAbout system={data.system} versionCheck={data.version} />
       </section>
     </div>
   );

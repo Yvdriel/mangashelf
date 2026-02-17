@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { SystemInfo } from "./StatusPage";
+import type { SystemInfo, VersionCheckResult } from "./StatusPage";
 
 interface SystemAboutProps {
   system: SystemInfo;
+  versionCheck: VersionCheckResult;
 }
 
 function formatUptime(seconds: number): string {
@@ -27,7 +28,7 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
-export function SystemAbout({ system }: SystemAboutProps) {
+export function SystemAbout({ system, versionCheck }: SystemAboutProps) {
   const [vacuuming, setVacuuming] = useState(false);
   const [vacuumResult, setVacuumResult] = useState<string | null>(null);
   const [cleaning, setCleaning] = useState(false);
@@ -90,8 +91,48 @@ export function SystemAbout({ system }: SystemAboutProps) {
       <div className="grid grid-cols-2 gap-x-8 gap-y-3 p-4 sm:grid-cols-3 lg:grid-cols-4">
         <div>
           <p className="text-xs text-surface-300">Version</p>
-          <p className="text-sm text-surface-50">{system.version}</p>
+          <div className="flex items-center gap-2">
+            <p
+              className="text-sm text-surface-50"
+              title={system.commitSha ?? undefined}
+            >
+              {system.version}
+            </p>
+            {versionCheck.updateAvailable === true && (
+              <a
+                href="https://github.com/Yvdriel/mangashelf/pkgs/container/mangashelf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full bg-yellow-500/15 px-2 py-0.5 text-[11px] font-medium text-yellow-300 transition-colors hover:bg-yellow-500/25"
+                title={
+                  versionCheck.latest
+                    ? `Latest: ${versionCheck.latest.commitSha}`
+                    : "A newer version is available"
+                }
+              >
+                Update available
+              </a>
+            )}
+            {versionCheck.updateAvailable === false && (
+              <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[11px] font-medium text-green-300">
+                Up to date
+              </span>
+            )}
+            {versionCheck.updateAvailable === null && system.commitSha && (
+              <span className="rounded-full bg-surface-500/30 px-2 py-0.5 text-[11px] font-medium text-surface-300">
+                Unknown
+              </span>
+            )}
+          </div>
         </div>
+        {system.buildDate && (
+          <div>
+            <p className="text-xs text-surface-300">Build Date</p>
+            <p className="text-sm text-surface-50">
+              {new Date(system.buildDate).toLocaleDateString()}
+            </p>
+          </div>
+        )}
         <div>
           <p className="text-xs text-surface-300">Node.js</p>
           <p className="text-sm text-surface-50">{system.nodeVersion}</p>

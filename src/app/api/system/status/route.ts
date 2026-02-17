@@ -10,6 +10,7 @@ import { getDatabaseStats } from "@/lib/system/db-stats";
 import { runHealthChecks } from "@/lib/system/health-checks";
 import { getTaskStates } from "@/lib/background/task-registry";
 import { getSystemInfo } from "@/lib/system/system-info";
+import { checkForUpdates } from "@/lib/system/version";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +22,11 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const force = searchParams.get("force") === "true";
 
-  // Run service checks (async) in parallel with synchronous data gathering
-  const [services] = await Promise.all([checkAllServices(force)]);
+  // Run async checks in parallel
+  const [services, versionCheck] = await Promise.all([
+    checkAllServices(force),
+    checkForUpdates(force),
+  ]);
   const disk = getLibraryDiskInfo();
   const database = getDatabaseInfo();
   const staging = getStagingInfo();
@@ -36,6 +40,7 @@ export async function GET(request: Request) {
     database,
     staging,
     dbStats,
+    versionCheck,
   });
 
   return NextResponse.json({
@@ -53,5 +58,6 @@ export async function GET(request: Request) {
     tasks,
     system,
     health,
+    version: versionCheck,
   });
 }

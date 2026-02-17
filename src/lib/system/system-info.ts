@@ -3,9 +3,12 @@
  */
 
 import fs from "fs";
+import { getBuildIdentity } from "./version";
 
 export interface SystemInfo {
   version: string;
+  commitSha: string | null;
+  buildDate: string | null;
   nodeVersion: string;
   platform: string;
   architecture: string;
@@ -56,6 +59,7 @@ export function getSystemInfo(): SystemInfo {
   const uptimeSeconds = process.uptime();
   const MANGA_DIR = process.env.MANGA_DIR || "/manga";
   const IMPORT_BROWSE_ROOTS = process.env.IMPORT_BROWSE_ROOTS;
+  const build = getBuildIdentity();
 
   let browseRoots: string[] = [];
   if (IMPORT_BROWSE_ROOTS) {
@@ -63,7 +67,9 @@ export function getSystemInfo(): SystemInfo {
   }
 
   return {
-    version: getPackageVersion(),
+    version: build ? build.shortSha : getPackageVersion(),
+    commitSha: build?.commitSha ?? null,
+    buildDate: build?.buildDate ?? null,
     nodeVersion: process.version,
     platform: process.platform,
     architecture: process.arch,

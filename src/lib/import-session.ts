@@ -109,6 +109,14 @@ export function getActiveImportSession(): ImportSession | undefined {
   return undefined;
 }
 
+export function countUploadingSessions(): number {
+  let count = 0;
+  for (const session of getSessions().values()) {
+    if (session.status === "uploading") count++;
+  }
+  return count;
+}
+
 export function cleanupStaleSessions(
   options: { startup?: boolean } = {},
 ): void {

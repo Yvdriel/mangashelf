@@ -6,6 +6,7 @@ import {
   createSession,
   getImportSession,
   updateSession,
+  countUploadingSessions,
 } from "@/lib/import-session";
 
 export const dynamic = "force-dynamic";
@@ -14,11 +15,19 @@ const MAX_UPLOAD_SIZE = parseInt(
   process.env.IMPORT_MAX_UPLOAD_SIZE || "2147483648",
   10,
 );
+const MAX_CONCURRENT_UPLOADS = 3;
 
 export async function POST(request: NextRequest) {
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
+  if (countUploadingSessions() >= MAX_CONCURRENT_UPLOADS) {
+    return NextResponse.json(
+      { error: "Too many concurrent uploads. Please wait and try again." },
+      { status: 429 },
+    );
   }
 
   const contentLength = parseInt(
@@ -83,6 +92,7 @@ export async function POST(request: NextRequest) {
 
       if (bytesReceived > MAX_UPLOAD_SIZE) {
         writeStream.destroy();
+        await reader.cancel();
         fs.rmSync(stagingPath, { recursive: true, force: true });
         return NextResponse.json(
           { error: "Total upload size exceeds maximum" },

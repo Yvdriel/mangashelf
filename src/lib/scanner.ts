@@ -3,6 +3,12 @@ import path from "path";
 import { db } from "@/db";
 import { manga, volume } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import {
+  registerTask,
+  taskStarted,
+  taskCompleted,
+  taskFailed,
+} from "./background/task-registry";
 
 const MANGA_DIR = process.env.MANGA_DIR || "/manga";
 
@@ -100,14 +106,32 @@ function scanFilesystem(): ScannedManga[] {
   return results;
 }
 
+registerTask("library-scan", {
+  description: "Scan manga directory and sync with database",
+  intervalMs: 0, // on-demand only
+  run: () => {
+    const result = syncLibrary();
+    return `+${result.added} added, ${result.updated} updated, ${result.removed} removed`;
+  },
+});
+
 export function syncLibrary(): {
   added: number;
   updated: number;
   removed: number;
 } {
   setScanningFlag(true);
+  taskStarted("library-scan");
   try {
-    return _syncLibraryInner();
+    const result = _syncLibraryInner();
+    taskCompleted(
+      "library-scan",
+      `+${result.added} added, ${result.updated} updated, ${result.removed} removed`,
+    );
+    return result;
+  } catch (e) {
+    taskFailed("library-scan", e instanceof Error ? e.message : String(e));
+    throw e;
   } finally {
     setScanningFlag(false);
   }

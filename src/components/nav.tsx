@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
+import { HealthBadge } from "./system/HealthBadge";
 
 interface NavProps {
   isAdmin?: boolean;
@@ -12,8 +13,9 @@ export function Nav({ isAdmin = false }: NavProps) {
   const pathname = usePathname();
   const isManager = pathname.startsWith("/manager");
   const isDownloads = pathname.startsWith("/downloads");
+  const isSystem = pathname.startsWith("/system");
   const isLibrary =
-    !isManager && !isDownloads && !pathname.startsWith("/manga/");
+    !isManager && !isDownloads && !isSystem && !pathname.startsWith("/manga/");
 
   return (
     <div className="flex items-center gap-1">
@@ -91,6 +93,33 @@ export function Nav({ isAdmin = false }: NavProps) {
             />
           </svg>
           <span className="hidden sm:inline">Downloads</span>
+        </Link>
+      )}
+      {isAdmin && (
+        <Link
+          href="/system/status"
+          className={clsx(
+            "relative flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+            isSystem
+              ? "bg-surface-700 text-accent-300"
+              : "text-surface-200 hover:text-surface-50",
+          )}
+        >
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728M9.172 15.828a4 4 0 010-5.656m5.656 0a4 4 0 010 5.656M12 12h.01"
+            />
+          </svg>
+          <span className="hidden sm:inline">System</span>
+          <HealthBadge />
         </Link>
       )}
     </div>

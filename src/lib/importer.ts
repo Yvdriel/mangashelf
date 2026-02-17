@@ -6,6 +6,13 @@ import { eq, inArray, isNotNull, and } from "drizzle-orm";
 import { getTorrentStatus } from "./deluge";
 import { syncLibrary } from "./scanner";
 import { extractIfNeeded, cleanupTempDir } from "./extractor";
+import {
+  registerTask,
+  taskStarted,
+  taskCompleted,
+  taskFailed,
+  updateTaskNextRun,
+} from "./background/task-registry";
 
 // Use globalThis to share importing state across Next.js module instances
 const _g = globalThis as unknown as { __mangashelf_importing?: boolean };
@@ -1273,6 +1280,7 @@ let importTimer: ReturnType<typeof setInterval> | null = null;
 let _running = false;
 
 async function progressTick(): Promise<void> {
+  taskStarted("download-progress");
   try {
     const downloading = db
       .select()
@@ -1292,16 +1300,66 @@ async function progressTick(): Promise<void> {
       ? PROGRESS_INTERVAL_FAST
       : PROGRESS_INTERVAL_SLOW;
 
+    taskCompleted(
+      "download-progress",
+      hasActive
+        ? `Tracking ${downloading.length} downloads`
+        : "No active downloads",
+    );
+
     if (_running) {
       progressTimer = setTimeout(progressTick, nextInterval);
     }
   } catch (e) {
+    taskFailed("download-progress", e instanceof Error ? e.message : String(e));
     console.error("[MangaShelf] Progress tick error:", e);
     if (_running) {
       progressTimer = setTimeout(progressTick, PROGRESS_INTERVAL_SLOW);
     }
   }
 }
+
+async function importTickFull(): Promise<string> {
+  setImportingFlag(true);
+  try {
+    const bulk = await checkAndImportBulkDownloads();
+    const single = await checkAndImportDownloads();
+    const totalImported = bulk.imported + single.imported;
+    const totalFailed = bulk.failed + single.failed;
+    if (totalImported > 0 || totalFailed > 0) {
+      console.log(
+        `[MangaShelf] Import check: ${totalImported} imported, ${totalFailed} failed`,
+      );
+    }
+    setImportingFlag(false);
+    if (totalImported > 0) {
+      try {
+        syncLibrary();
+      } catch (e) {
+        console.error("[MangaShelf] Library rescan after import failed:", e);
+      }
+    }
+    return `${totalImported} imported, ${totalFailed} failed`;
+  } catch (e) {
+    setImportingFlag(false);
+    throw e;
+  }
+}
+
+registerTask("download-progress", {
+  description: "Poll Deluge for download progress updates",
+  intervalMs: PROGRESS_INTERVAL_FAST,
+  run: async () => {
+    await progressTick();
+    return "Progress check completed";
+  },
+});
+
+registerTask("auto-import", {
+  description: "Check completed downloads and import to library",
+  intervalMs: DOWNLOAD_CHECK_INTERVAL,
+  run: importTickFull,
+});
 
 export function startBackgroundTasks(): void {
   if (_running) return;
@@ -1315,29 +1373,23 @@ export function startBackgroundTasks(): void {
   progressTimer = setTimeout(progressTick, PROGRESS_INTERVAL_FAST);
 
   // Import timer: fixed interval for heavy I/O operations
+  updateTaskNextRun(
+    "auto-import",
+    new Date(Date.now() + DOWNLOAD_CHECK_INTERVAL),
+  );
   importTimer = setInterval(async () => {
-    setImportingFlag(true);
+    taskStarted("auto-import");
     try {
-      const bulk = await checkAndImportBulkDownloads();
-      const single = await checkAndImportDownloads();
-      const totalImported = bulk.imported + single.imported;
-      const totalFailed = bulk.failed + single.failed;
-      if (totalImported > 0 || totalFailed > 0) {
-        console.log(
-          `[MangaShelf] Import check: ${totalImported} imported, ${totalFailed} failed`,
-        );
-      }
-      setImportingFlag(false);
-      if (totalImported > 0) {
-        try {
-          syncLibrary();
-        } catch (e) {
-          console.error("[MangaShelf] Library rescan after import failed:", e);
-        }
-      }
+      const result = await importTickFull();
+      taskCompleted("auto-import", result);
+      updateTaskNextRun(
+        "auto-import",
+        new Date(Date.now() + DOWNLOAD_CHECK_INTERVAL),
+      );
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      taskFailed("auto-import", msg);
       console.error("[MangaShelf] Import task error:", e);
-      setImportingFlag(false);
     }
   }, DOWNLOAD_CHECK_INTERVAL);
 

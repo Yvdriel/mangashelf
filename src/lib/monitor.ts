@@ -4,6 +4,13 @@ import { eq, and, inArray } from "drizzle-orm";
 import { searchMangaVolumes, type TorrentResult } from "./jackett";
 import { addTorrent } from "./deluge";
 import { getMangaDetail } from "./anilist";
+import {
+  registerTask,
+  taskStarted,
+  taskCompleted,
+  taskFailed,
+  updateTaskNextRun,
+} from "./background/task-registry";
 
 const MONITOR_INTERVAL =
   parseInt(process.env.MONITOR_INTERVAL || "3600", 10) * 1000;
@@ -337,6 +344,25 @@ export async function refreshReleasingManga(): Promise<number> {
 
 let monitorTimer: ReturnType<typeof setInterval> | null = null;
 
+async function monitorCycleFull(): Promise<string> {
+  const refreshed = await refreshReleasingManga();
+  const cycle = await runMonitoringCycle();
+  const parts: string[] = [];
+  if (refreshed > 0) parts.push(`${refreshed} metadata refreshed`);
+  parts.push(`${cycle.mangaChecked} manga checked`);
+  if (cycle.totalDownloaded > 0)
+    parts.push(`${cycle.totalDownloaded} downloaded`);
+  if (cycle.totalAvailable > 0) parts.push(`${cycle.totalAvailable} available`);
+  if (cycle.totalFailed > 0) parts.push(`${cycle.totalFailed} failed`);
+  return parts.join(", ");
+}
+
+registerTask("monitoring-cycle", {
+  description: "Search for missing volumes and optionally auto-download",
+  intervalMs: MONITOR_INTERVAL,
+  run: monitorCycleFull,
+});
+
 export function startMonitorInterval(): void {
   if (monitorTimer) return;
 
@@ -344,11 +370,23 @@ export function startMonitorInterval(): void {
     `[Monitor] Starting auto-monitor every ${MONITOR_INTERVAL / 1000}s (AUTO_DOWNLOAD=${AUTO_DOWNLOAD})`,
   );
 
+  updateTaskNextRun(
+    "monitoring-cycle",
+    new Date(Date.now() + MONITOR_INTERVAL),
+  );
+
   monitorTimer = setInterval(async () => {
+    taskStarted("monitoring-cycle");
     try {
-      await refreshReleasingManga();
-      await runMonitoringCycle();
+      const result = await monitorCycleFull();
+      taskCompleted("monitoring-cycle", result);
+      updateTaskNextRun(
+        "monitoring-cycle",
+        new Date(Date.now() + MONITOR_INTERVAL),
+      );
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      taskFailed("monitoring-cycle", msg);
       console.error("[Monitor] Monitoring cycle error:", e);
     }
   }, MONITOR_INTERVAL);

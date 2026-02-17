@@ -12,6 +12,8 @@ export interface ImportAnalysis {
   };
   /** Title guessed from folder/file name — used to pre-fill AniList search */
   titleGuess?: string;
+  /** Whether the source was an upload (vs filesystem browse) */
+  sourceType?: "filesystem" | "upload";
 }
 
 export interface DetectedVolume {

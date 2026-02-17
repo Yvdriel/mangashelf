@@ -340,6 +340,7 @@ export async function POST(request: NextRequest) {
       warnings,
       suggestedMatch,
       titleGuess: titleGuess || undefined,
+      sourceType: existingSessionId ? "upload" : "filesystem",
     };
 
     updateSession(importSession.id, { status: "ready", analysis });

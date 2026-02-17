@@ -111,62 +111,64 @@ export function ImportConfirmation({
       <div className="rounded-xl border border-surface-600 bg-surface-800 p-5 space-y-4">
         <h3 className="text-sm font-medium text-surface-50">Import Settings</h3>
 
-        {/* Copy vs Move */}
-        <div className="space-y-2">
-          <label className="text-xs text-surface-300">File handling</label>
-          <div className="flex gap-3">
-            <label
-              className={`flex flex-1 cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
-                mode === "copy"
-                  ? "border-accent-400/40 bg-accent-400/5"
-                  : "border-surface-600 hover:border-surface-500"
-              }`}
-            >
-              <input
-                type="radio"
-                name="mode"
-                value="copy"
-                checked={mode === "copy"}
-                onChange={() => onModeChange("copy")}
-                className="h-4 w-4 text-accent-400 focus:ring-accent-400/50"
-              />
-              <div>
-                <p className="text-sm font-medium text-surface-50">Copy</p>
-                <p className="text-xs text-surface-300">
-                  Keep original files in place
-                </p>
-              </div>
-            </label>
-            <label
-              className={`flex flex-1 cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
-                mode === "move"
-                  ? "border-accent-400/40 bg-accent-400/5"
-                  : "border-surface-600 hover:border-surface-500"
-              }`}
-            >
-              <input
-                type="radio"
-                name="mode"
-                value="move"
-                checked={mode === "move"}
-                onChange={() => onModeChange("move")}
-                className="h-4 w-4 text-accent-400 focus:ring-accent-400/50"
-              />
-              <div>
-                <p className="text-sm font-medium text-surface-50">Move</p>
-                <p className="text-xs text-surface-300">
-                  Delete originals after import
-                </p>
-              </div>
-            </label>
+        {/* Copy vs Move — only shown for filesystem imports */}
+        {analysis.sourceType !== "upload" && (
+          <div className="space-y-2">
+            <label className="text-xs text-surface-300">File handling</label>
+            <div className="flex gap-3">
+              <label
+                className={`flex flex-1 cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                  mode === "copy"
+                    ? "border-accent-400/40 bg-accent-400/5"
+                    : "border-surface-600 hover:border-surface-500"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="mode"
+                  value="copy"
+                  checked={mode === "copy"}
+                  onChange={() => onModeChange("copy")}
+                  className="h-4 w-4 text-accent-400 focus:ring-accent-400/50"
+                />
+                <div>
+                  <p className="text-sm font-medium text-surface-50">Copy</p>
+                  <p className="text-xs text-surface-300">
+                    Keep original files in place
+                  </p>
+                </div>
+              </label>
+              <label
+                className={`flex flex-1 cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                  mode === "move"
+                    ? "border-accent-400/40 bg-accent-400/5"
+                    : "border-surface-600 hover:border-surface-500"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="mode"
+                  value="move"
+                  checked={mode === "move"}
+                  onChange={() => onModeChange("move")}
+                  className="h-4 w-4 text-accent-400 focus:ring-accent-400/50"
+                />
+                <div>
+                  <p className="text-sm font-medium text-surface-50">Move</p>
+                  <p className="text-xs text-surface-300">
+                    Delete originals after import
+                  </p>
+                </div>
+              </label>
+            </div>
+            {mode === "move" && (
+              <p className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 px-3 py-2 text-xs text-yellow-400">
+                Original files will be permanently deleted after a successful
+                import.
+              </p>
+            )}
           </div>
-          {mode === "move" && (
-            <p className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 px-3 py-2 text-xs text-yellow-400">
-              Original files will be permanently deleted after a successful
-              import.
-            </p>
-          )}
-        </div>
+        )}
 
         {/* Manager integration */}
         {anilistMatch && (

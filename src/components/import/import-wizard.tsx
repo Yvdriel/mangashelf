@@ -62,6 +62,11 @@ export function ImportWizard() {
       setManualTitle(result.titleGuess);
     }
 
+    // Uploads always use "move" — staging files are temporary
+    if (result.sourceType === "upload") {
+      setMode("move");
+    }
+
     setStep(2);
   }, []);
 

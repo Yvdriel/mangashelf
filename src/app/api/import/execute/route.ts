@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     mode,
     addToManager,
     monitor,
-    sourceType: "filesystem",
+    sourceType: importSession.analysis.sourceType || "filesystem",
   };
 
   updateSession(sessionId, {

@@ -1,21 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getSessionCookie } from "better-auth/cookies";
+import { auth } from "@/lib/auth";
+import { db } from "@/db";
+import { user } from "@/db/schema";
+import { sql } from "drizzle-orm";
 
-// UX redirect layer — not a security boundary.
-// Checks cookie existence to redirect unauthenticated users to /login and
-// authenticated users away from auth pages. Does NOT validate tokens.
-// All API routes independently validate sessions via getSession()/requireAdmin()
-// with full database checks, so a fake cookie cannot access protected data.
-
-export function proxy(request: NextRequest) {
-  const sessionCookie =
-    request.cookies.get("better-auth.session_token") ||
-    request.cookies.get("__Secure-better-auth.session_token");
-
-  // Basic format check: token must be non-empty and reasonably sized
-  const hasSession =
-    sessionCookie?.value != null && sessionCookie.value.length >= 32;
-
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isAuthPage =
@@ -27,13 +18,35 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // No valid session cookie and not on auth page → redirect to login
-  if (!hasSession && !isAuthPage) {
+  // Fast path: no cookie at all → skip DB validation
+  const sessionCookie = getSessionCookie(request);
+
+  if (!sessionCookie) {
+    if (!isAuthPage) {
+      const result = db
+        .select({ count: sql<number>`count(*)` })
+        .from(user)
+        .get();
+      const hasUsers = (result?.count ?? 0) > 0;
+      return NextResponse.redirect(
+        new URL(hasUsers ? "/login" : "/setup", request.url),
+      );
+    }
+    return NextResponse.next();
+  }
+
+  // Cookie exists — validate session against the database
+  const session = await auth.api.getSession({
+    headers: request.headers,
+  });
+
+  if (!session && !isAuthPage) {
+    // Expired/invalid session → redirect to login
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Has session cookie and on auth page → redirect to home
-  if (hasSession && isAuthPage) {
+  if (session && isAuthPage) {
+    // Valid session on auth page → redirect to home
     return NextResponse.redirect(new URL("/", request.url));
   }
 

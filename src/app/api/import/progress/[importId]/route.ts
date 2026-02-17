@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
 const MANGA_DIR = process.env.MANGA_DIR || "/manga";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ importId: string }> },
 ) {
   const session = await requireAdmin();
@@ -47,13 +47,34 @@ export async function GET(
   const config = importSession.importConfig;
   const analysis = importSession.analysis;
 
+  const abortSignal = request.signal;
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
+      let closed = false;
+
       function send(event: string, data: Record<string, unknown>) {
-        controller.enqueue(
-          encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
-        );
+        if (closed) return;
+        try {
+          controller.enqueue(
+            encoder.encode(
+              `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
+            ),
+          );
+        } catch {
+          closed = true;
+        }
+      }
+
+      function close() {
+        if (closed) return;
+        closed = true;
+        try {
+          controller.close();
+        } catch {
+          // already closed
+        }
       }
 
       try {
@@ -91,6 +112,16 @@ export async function GET(
 
         for (const volConfig of config.volumes) {
           if (volConfig.action === "skip") continue;
+
+          // Stop importing if the client disconnected
+          if (abortSignal.aborted) {
+            console.log(
+              `[IMPORT] Client disconnected, stopping import for session ${importId}`,
+            );
+            updateSession(importId, { status: "failed" });
+            close();
+            return;
+          }
 
           const analysisVolume = analysis.volumes.find(
             (v) => v.id === volConfig.id,
@@ -365,7 +396,7 @@ export async function GET(
         updateSession(importId, { status: "failed" });
         send("error", { error: String(e) });
       } finally {
-        controller.close();
+        close();
       }
     },
   });

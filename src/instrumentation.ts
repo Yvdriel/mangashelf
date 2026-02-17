@@ -21,6 +21,6 @@ export async function register() {
 
     // Clean up stale import sessions from previous runs
     const { cleanupStaleSessions } = await import("./lib/import-session");
-    cleanupStaleSessions();
+    cleanupStaleSessions({ startup: true });
   }
 }

@@ -109,7 +109,9 @@ export function getActiveImportSession(): ImportSession | undefined {
   return undefined;
 }
 
-export function cleanupStaleSessions(): void {
+export function cleanupStaleSessions(
+  options: { startup?: boolean } = {},
+): void {
   const now = Date.now();
   for (const [id, session] of getSessions()) {
     if (now - session.createdAt > SESSION_MAX_AGE_MS) {
@@ -118,7 +120,9 @@ export function cleanupStaleSessions(): void {
     }
   }
 
-  // Also clean up orphaned staging directories
+  // Also clean up orphaned staging directories.
+  // On startup, remove all orphaned dirs regardless of age since no
+  // in-memory sessions survive a restart — every dir on disk is orphaned.
   try {
     if (fs.existsSync(STAGING_DIR)) {
       const entries = fs.readdirSync(STAGING_DIR, { withFileTypes: true });
@@ -126,13 +130,14 @@ export function cleanupStaleSessions(): void {
         if (!entry.isDirectory()) continue;
         if (!getSessions().has(entry.name)) {
           const dirPath = path.join(STAGING_DIR, entry.name);
-          const stat = fs.statSync(dirPath);
-          if (now - stat.mtimeMs > SESSION_MAX_AGE_MS) {
-            console.log(
-              `[IMPORT] Cleaning up orphaned staging dir: ${entry.name}`,
-            );
-            fs.rmSync(dirPath, { recursive: true, force: true });
+          if (!options.startup) {
+            const stat = fs.statSync(dirPath);
+            if (now - stat.mtimeMs <= SESSION_MAX_AGE_MS) continue;
           }
+          console.log(
+            `[IMPORT] Cleaning up orphaned staging dir: ${entry.name}`,
+          );
+          fs.rmSync(dirPath, { recursive: true, force: true });
         }
       }
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 interface FileDropZoneProps {
   onUploadComplete: (sessionId: string, stagingPath: string) => void;
@@ -20,42 +20,97 @@ export function FileDropZone({
 }: FileDropZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [progress, setProgress] = useState({
+    percent: 0,
+    received: 0,
+    total: 0,
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dirInputRef = useRef<HTMLInputElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Clean up polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
+  const startProgressPolling = useCallback(
+    (sessionId: string, totalBytes: number) => {
+      // Set initial state with known total
+      setProgress({ percent: 0, received: 0, total: totalBytes });
+
+      pollRef.current = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/import/upload/progress/${sessionId}`);
+          if (!res.ok) return;
+          const data = await res.json();
+          const total = data.bytesTotal || totalBytes;
+          const pct =
+            total > 0 ? Math.round((data.bytesReceived / total) * 100) : 0;
+          setProgress({ percent: pct, received: data.bytesReceived, total });
+
+          // Stop polling once upload is done (status changed from "uploading")
+          if (data.status !== "uploading") {
+            if (pollRef.current) {
+              clearInterval(pollRef.current);
+              pollRef.current = null;
+            }
+          }
+        } catch {
+          // Ignore polling errors
+        }
+      }, 500);
+    },
+    [],
+  );
+
+  const stopProgressPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
 
   const handleUpload = useCallback(
     async (files: File[]) => {
       if (files.length === 0) return;
 
+      const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
       setUploading(true);
-      setProgress(0);
+      setProgress({ percent: 0, received: 0, total: totalBytes });
       setError(null);
 
-      const formData = new FormData();
-      for (const file of files) {
-        // Use webkitRelativePath if available (directory upload), else just the file name
-        const key =
-          (file as File & { webkitRelativePath?: string }).webkitRelativePath ||
-          file.name;
-        formData.append(key, file);
-      }
-
       try {
-        // Use XMLHttpRequest for upload progress
+        // Step 1: Create a session so we can poll its progress
+        const initRes = await fetch("/api/import/upload/init", {
+          method: "POST",
+        });
+        if (!initRes.ok) {
+          throw new Error("Failed to initialize upload session");
+        }
+        const { sessionId } = await initRes.json();
+
+        // Step 2: Start polling server-side progress
+        startProgressPolling(sessionId, totalBytes);
+
+        // Step 3: Upload the files
+        const formData = new FormData();
+        for (const file of files) {
+          const key =
+            (file as File & { webkitRelativePath?: string })
+              .webkitRelativePath || file.name;
+          formData.append(key, file);
+        }
+
         const result = await new Promise<{
           sessionId: string;
           stagingPath: string;
         }>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
-
-          xhr.upload.addEventListener("progress", (e) => {
-            if (e.lengthComputable) {
-              setProgress(Math.round((e.loaded / e.total) * 100));
-            }
-          });
 
           xhr.addEventListener("load", () => {
             if (xhr.status >= 200 && xhr.status < 300) {
@@ -74,19 +129,21 @@ export function FileDropZone({
             reject(new Error("Upload failed — network error"));
           });
 
-          xhr.open("POST", "/api/import/upload");
+          xhr.open("POST", `/api/import/upload?sessionId=${sessionId}`);
           xhr.send(formData);
         });
 
-        setProgress(100);
+        stopProgressPolling();
+        setProgress({ percent: 100, received: totalBytes, total: totalBytes });
         onUploadComplete(result.sessionId, result.stagingPath);
       } catch (e) {
+        stopProgressPolling();
         setError(String(e instanceof Error ? e.message : e));
       } finally {
         setUploading(false);
       }
     },
-    [onUploadComplete],
+    [onUploadComplete, startProgressPolling, stopProgressPolling],
   );
 
   const handleDrop = useCallback(
@@ -147,17 +204,18 @@ export function FileDropZone({
                 Uploading {selectedFiles.length} file
                 {selectedFiles.length !== 1 ? "s" : ""}...
               </span>
-              <span className="text-accent-300 font-medium">{progress}%</span>
+              <span className="text-accent-300 font-medium">
+                {progress.percent}%
+              </span>
             </div>
             <div className="h-2 rounded-full bg-surface-600 overflow-hidden">
               <div
                 className="h-full rounded-full bg-accent-400 transition-all duration-300"
-                style={{ width: `${progress}%` }}
+                style={{ width: `${progress.percent}%` }}
               />
             </div>
             <p className="text-xs text-surface-300 text-center">
-              {formatSize(selectedFiles.reduce((sum, f) => sum + f.size, 0))}{" "}
-              total
+              {formatSize(progress.received)} / {formatSize(progress.total)}
             </p>
           </div>
         ) : (

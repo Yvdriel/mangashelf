@@ -2,7 +2,11 @@ import fs from "fs";
 import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
-import { createSession } from "@/lib/import-session";
+import {
+  createSession,
+  getImportSession,
+  updateSession,
+} from "@/lib/import-session";
 
 export const dynamic = "force-dynamic";
 
@@ -38,51 +42,72 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const body = request.body;
+  if (!body) {
+    return NextResponse.json({ error: "Empty request body" }, { status: 400 });
+  }
+
+  const boundaryMatch = contentType.match(/boundary=(.+)/);
+  if (!boundaryMatch) {
+    return NextResponse.json(
+      { error: "Missing multipart boundary" },
+      { status: 400 },
+    );
+  }
+  const boundary = boundaryMatch[1].replace(/;.*$/, "").trim();
+
+  // Use pre-created session (from /init) or create one on the fly
+  const existingSessionId = request.nextUrl.searchParams.get("sessionId");
+  const importSession =
+    (existingSessionId && getImportSession(existingSessionId)) ||
+    createSession();
+  const stagingPath = importSession.stagingPath;
+
+  updateSession(importSession.id, {
+    status: "uploading",
+    uploadBytesReceived: 0,
+    uploadBytesTotal: contentLength || 0,
+  });
+
   try {
-    const importSession = createSession();
-    const stagingPath = importSession.stagingPath;
-
-    // Read the raw body and write to a temp file, then parse multipart manually
-    const body = request.body;
-    if (!body) {
-      return NextResponse.json(
-        { error: "Empty request body" },
-        { status: 400 },
-      );
-    }
-
-    // Extract boundary from content-type
-    const boundaryMatch = contentType.match(/boundary=(.+)/);
-    if (!boundaryMatch) {
-      return NextResponse.json(
-        { error: "Missing multipart boundary" },
-        { status: 400 },
-      );
-    }
-    const boundary = boundaryMatch[1].replace(/;.*$/, "").trim();
-
-    // Read entire body into a buffer by streaming chunks
-    const chunks: Uint8Array[] = [];
-    let totalSize = 0;
+    // Stream body to a temp file while tracking progress
+    const tempFilePath = path.join(stagingPath, "__upload.tmp");
+    const writeStream = fs.createWriteStream(tempFilePath);
     const reader = body.getReader();
+    let bytesReceived = 0;
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      totalSize += value.byteLength;
-      if (totalSize > MAX_UPLOAD_SIZE) {
+      bytesReceived += value.byteLength;
+
+      if (bytesReceived > MAX_UPLOAD_SIZE) {
+        writeStream.destroy();
         fs.rmSync(stagingPath, { recursive: true, force: true });
         return NextResponse.json(
           { error: "Total upload size exceeds maximum" },
           { status: 413 },
         );
       }
-      chunks.push(value);
+
+      writeStream.write(value);
+
+      // Update session progress for polling
+      updateSession(importSession.id, {
+        uploadBytesReceived: bytesReceived,
+      });
     }
 
-    const fullBuffer = Buffer.concat(chunks);
+    // Wait for write stream to finish
+    await new Promise<void>((resolve, reject) => {
+      writeStream.end(() => resolve());
+      writeStream.on("error", reject);
+    });
 
-    // Parse multipart form data from the buffer
+    // Read the completed temp file and parse multipart
+    const fullBuffer = fs.readFileSync(tempFilePath);
+    fs.unlinkSync(tempFilePath);
+
     const files = parseMultipartFiles(fullBuffer, boundary, stagingPath);
 
     if (files.length === 0) {
@@ -93,13 +118,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    updateSession(importSession.id, {
+      status: "created",
+      uploadBytesReceived: bytesReceived,
+    });
+
     return NextResponse.json({
       sessionId: importSession.id,
       stagingPath,
       files: files.map((f) => ({ name: f.name, size: f.size })),
-      totalSize,
+      totalSize: bytesReceived,
     });
   } catch (e) {
+    fs.rmSync(stagingPath, { recursive: true, force: true });
     return NextResponse.json({ error: `Upload failed: ${e}` }, { status: 500 });
   }
 }
@@ -117,7 +148,6 @@ function parseMultipartFiles(
 ): ParsedFile[] {
   const files: ParsedFile[] = [];
   const boundaryBuf = Buffer.from(`--${boundary}`);
-  const endBoundaryBuf = Buffer.from(`--${boundary}--`);
 
   // Split by boundary
   let start = 0;

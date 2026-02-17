@@ -11,6 +11,7 @@ export interface ImportSession {
   createdAt: number;
   stagingPath: string;
   status:
+    | "uploading"
     | "created"
     | "analyzing"
     | "ready"
@@ -21,6 +22,9 @@ export interface ImportSession {
   importConfig?: ImportConfig;
   /** Temp dir from archive extraction (needs cleanup) */
   extractionTempDir?: string | null;
+  /** Upload progress tracking */
+  uploadBytesReceived?: number;
+  uploadBytesTotal?: number;
 }
 
 export interface ImportConfig {

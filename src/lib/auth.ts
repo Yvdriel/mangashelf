@@ -45,8 +45,6 @@ export const auth = betterAuth({
     user: {
       create: {
         before: async (userData) => {
-          // Check if any users exist — only allow creation when zero users exist
-          // (first user setup) or when called from admin context
           const result = db
             .select({ count: sql<number>`count(*)` })
             .from(schema.user)
@@ -61,9 +59,12 @@ export const auth = betterAuth({
               },
             };
           }
-          // Block direct signup attempts after initial setup.
-          // Admin user creation via admin.createUser() validates admin
-          // authorization before reaching this hook, so it still works.
+          // Allow admin-initiated user creation (admin.createUser passes
+          // a role, while regular signUpEmail does not)
+          if ("role" in userData && userData.role) {
+            return { data: userData };
+          }
+          // Block direct signup attempts after initial setup
           throw new Error("Registration is closed");
         },
       },

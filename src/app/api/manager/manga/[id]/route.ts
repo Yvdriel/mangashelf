@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { managedManga, managedVolume, downloadHistory } from "@/db/schema";
+import { managedManga, managedVolume } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const session = await requireAdmin();
+  if (!session) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { id } = await params;
   const mangaId = parseInt(id, 10);
 
@@ -39,6 +45,11 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const session = await requireAdmin();
+  if (!session) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { id } = await params;
   const mangaId = parseInt(id, 10);
 
@@ -52,7 +63,6 @@ export async function DELETE(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Cascade will handle volumes and history
   db.delete(managedManga).where(eq(managedManga.id, mangaId)).run();
 
   return NextResponse.json({ success: true });
@@ -62,6 +72,11 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const session = await requireAdmin();
+  if (!session) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { id } = await params;
   const mangaId = parseInt(id, 10);
   const body = await request.json();

@@ -6,8 +6,9 @@ import {
   managedManga,
   managedVolume,
 } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { notFound } from "next/navigation";
+import { eq, and } from "drizzle-orm";
+import { notFound, redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-helpers";
 import Image from "next/image";
 import Link from "next/link";
 import { MangaDescription } from "@/components/manga-description";
@@ -24,6 +25,11 @@ export default async function MangaDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const session = await getSession();
+  if (!session) {
+    redirect("/login");
+  }
+
   const { id } = await params;
   const mangaId = parseInt(id, 10);
 
@@ -59,7 +65,12 @@ export default async function MangaDetailPage({
   const progress = db
     .select()
     .from(readingProgress)
-    .where(eq(readingProgress.mangaId, mangaId))
+    .where(
+      and(
+        eq(readingProgress.mangaId, mangaId),
+        eq(readingProgress.userId, session.user.id),
+      ),
+    )
     .all();
 
   const progressByVolume = new Map(progress.map((p) => [p.volumeId, p]));
@@ -139,7 +150,7 @@ export default async function MangaDetailPage({
               className="h-full w-full scale-110 object-cover opacity-20 blur-2xl"
             />
           ) : null}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-surface-900" />
+          <div className="absolute inset-0 bg-linear-to-b from-transparent to-surface-900" />
         </div>
 
         <div className="relative mx-auto flex max-w-7xl gap-6 px-4 pt-8 pb-4">
@@ -151,10 +162,10 @@ export default async function MangaDetailPage({
                 width={160}
                 height={240}
                 unoptimized
-                className="aspect-[2/3] w-full object-cover"
+                className="aspect-2/3 w-full object-cover"
               />
             ) : (
-              <div className="flex aspect-[2/3] items-center justify-center text-surface-300">
+              <div className="flex aspect-2/3 items-center justify-center text-surface-300">
                 No Cover
               </div>
             )}

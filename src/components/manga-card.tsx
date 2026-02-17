@@ -28,7 +28,7 @@ export function MangaCard({ manga }: MangaCardProps) {
       href={`/manga/${manga.id}`}
       className="group overflow-hidden rounded-lg border border-surface-600 bg-surface-700 transition-all hover:border-surface-400 hover:shadow-lg hover:shadow-surface-900/50"
     >
-      <div className="relative aspect-[2/3] overflow-hidden bg-surface-600">
+      <div className="relative aspect-2/3 overflow-hidden bg-surface-600">
         {coverSrc ? (
           <Image
             src={coverSrc}

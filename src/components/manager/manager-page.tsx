@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -161,7 +160,7 @@ export function ManagerPage({
                   key={manga.id}
                   className="overflow-hidden rounded-lg border border-surface-600 bg-surface-700"
                 >
-                  <div className="relative aspect-[2/3] overflow-hidden bg-surface-600">
+                  <div className="relative aspect-2/3 overflow-hidden bg-surface-600">
                     {manga.coverImage.extraLarge || manga.coverImage.large ? (
                       <img
                         src={
@@ -262,7 +261,7 @@ export function ManagerPage({
                 href={`/manager/${manga.id}`}
                 className="group overflow-hidden rounded-lg border border-surface-600 bg-surface-700 transition-all hover:border-surface-400 hover:shadow-lg hover:shadow-surface-900/50"
               >
-                <div className="relative aspect-[2/3] overflow-hidden bg-surface-600">
+                <div className="relative aspect-2/3 overflow-hidden bg-surface-600">
                   {manga.coverImage ? (
                     <img
                       src={manga.coverImage}

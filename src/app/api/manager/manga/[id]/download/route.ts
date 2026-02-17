@@ -3,11 +3,17 @@ import { db } from "@/db";
 import { managedManga, managedVolume, downloadHistory } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { addTorrent } from "@/lib/deluge";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const session = await requireAdmin();
+  if (!session) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { id } = await params;
   const mangaId = parseInt(id, 10);
   const body = await request.json();

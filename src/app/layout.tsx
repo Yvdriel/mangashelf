@@ -6,6 +6,8 @@ import { DownloadIndicator } from "@/components/download-indicator";
 import { GlobalDownloadProgress } from "@/components/global-download-progress";
 import { DownloadStatusProvider } from "@/contexts/download-status";
 import { SwRegister } from "@/components/sw-register";
+import { UserMenu } from "@/components/user-menu";
+import { getSession } from "@/lib/auth-helpers";
 import Link from "next/link";
 import "./globals.css";
 
@@ -33,11 +35,14 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getSession();
+  const isAdmin = session?.user?.role === "admin";
+
   return (
     <html lang="en" className="dark">
       <body
@@ -45,7 +50,7 @@ export default function RootLayout({
       >
         <DownloadStatusProvider>
           <nav className="sticky top-0 z-50 border-b border-surface-600 bg-surface-900/80 backdrop-blur-sm pt-[env(safe-area-inset-top)]">
-            <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-[max(1rem,env(safe-area-inset-left))] min-w-0 overflow-hidden">
+            <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-[max(1rem,env(safe-area-inset-left))] min-w-0">
               <div className="flex items-center gap-6">
                 <Link
                   href="/"
@@ -53,16 +58,29 @@ export default function RootLayout({
                 >
                   MangaShelf
                 </Link>
-                <Nav />
+                {session && <Nav isAdmin={isAdmin} />}
               </div>
               <div className="flex items-center gap-2">
-                <DownloadIndicator />
-                <ScanButton />
+                {session && isAdmin && (
+                  <>
+                    <DownloadIndicator />
+                    <ScanButton />
+                  </>
+                )}
+                {session && (
+                  <UserMenu
+                    userName={session.user.name}
+                    userEmail={session.user.email}
+                    isAdmin={isAdmin}
+                  />
+                )}
               </div>
             </div>
           </nav>
-          <GlobalDownloadProgress />
-          <main className="mx-auto max-w-7xl px-[max(1rem,env(safe-area-inset-left))] py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">{children}</main>
+          {session && isAdmin && <GlobalDownloadProgress />}
+          <main className="mx-auto max-w-7xl px-[max(1rem,env(safe-area-inset-left))] py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+            {children}
+          </main>
         </DownloadStatusProvider>
         <SwRegister />
       </body>

@@ -3,8 +3,14 @@ import {
   checkAndImportDownloads,
   checkAndImportBulkDownloads,
 } from "@/lib/importer";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 export async function POST() {
+  const session = await requireAdmin();
+  if (!session) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   try {
     const bulk = await checkAndImportBulkDownloads();
     const single = await checkAndImportDownloads();

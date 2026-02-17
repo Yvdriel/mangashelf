@@ -217,7 +217,7 @@ export function Reader({
                   className="w-full h-auto"
                 />
               ) : (
-                <div className="aspect-[2/3] w-full bg-surface-800" />
+                <div className="aspect-2/3 w-full bg-surface-800" />
               )}
             </div>
           );

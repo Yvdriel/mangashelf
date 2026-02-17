@@ -44,6 +44,8 @@ interface ImportAnalysisViewProps {
   onManualTitleChange: (title: string) => void;
   onContinue: () => void;
   canContinue: boolean;
+  /** When provided, opens in AniList search mode with this query pre-filled */
+  initialSearchQuery?: string;
 }
 
 export function ImportAnalysisView({
@@ -56,9 +58,10 @@ export function ImportAnalysisView({
   onManualTitleChange,
   onContinue,
   canContinue,
+  initialSearchQuery,
 }: ImportAnalysisViewProps) {
-  const [searchMode, setSearchMode] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchMode, setSearchMode] = useState(!!initialSearchQuery);
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery || "");
   const [searchResults, setSearchResults] = useState<AniListSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [useManualTitle, setUseManualTitle] = useState(!anilistMatch);

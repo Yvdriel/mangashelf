@@ -58,6 +58,8 @@ export function ImportWizard() {
     if (result.suggestedMatch) {
       setAnilistMatch(result.suggestedMatch);
       setManualTitle(result.suggestedMatch.title);
+    } else if (result.titleGuess) {
+      setManualTitle(result.titleGuess);
     }
 
     setStep(2);
@@ -209,6 +211,9 @@ export function ImportWizard() {
           onManualTitleChange={setManualTitle}
           onContinue={() => setStep(3)}
           canContinue={importableCount > 0 && !!(anilistMatch || manualTitle)}
+          initialSearchQuery={
+            !analysis.suggestedMatch ? analysis.titleGuess : undefined
+          }
         />
       )}
 

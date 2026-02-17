@@ -48,7 +48,10 @@ function calculateDirSize(dir: string): number {
 
 function tryParseTitleFromPath(sourcePath: string): string | null {
   // Walk up from the source path trying to find a reasonable title
-  const basename = path.basename(sourcePath);
+  // Strip archive/image extensions first
+  const basename = path
+    .basename(sourcePath)
+    .replace(/\.(zip|rar|7z|cbz|cbr|tar|gz|jpg|jpeg|png|webp)$/i, "");
 
   // Strip common prefixes like [Group] or (stuff)
   let title = basename
@@ -57,9 +60,12 @@ function tryParseTitleFromPath(sourcePath: string): string | null {
     .replace(/\[.*?\]/g, "")
     .trim();
 
-  // Remove volume indicators
+  // Strip site-name prefixes like "DLraw.net-", "Manga1000.com_", "site.co.jp - "
+  title = title.replace(/^\S+\.\w{2,}\s*[-_]\s*/, "").trim();
+
+  // Remove volume indicators (vol 01, v01, vol 01-15, 第1巻, etc.)
   title = title
-    .replace(/v(?:ol(?:ume)?)?\.?\s*\d+.*$/i, "")
+    .replace(/v(?:ol(?:ume)?)?\.?\s*\d+[\d\s.~-]*$/i, "")
     .replace(/第\d+巻.*$/, "")
     .trim();
 
@@ -161,6 +167,23 @@ export async function POST(request: NextRequest) {
     if (folderMatch) {
       guessedTitle = folderMatch[1].trim();
       guessedAnilistId = parseInt(folderMatch[2], 10);
+    }
+
+    // For uploads: the staging directory name is a UUID, so derive the
+    // title from the original uploaded filenames instead
+    if (!guessedTitle && existingSessionId) {
+      try {
+        const entries = fs.readdirSync(sourcePath);
+        for (const entry of entries) {
+          const parsed = tryParseTitleFromPath(entry);
+          if (parsed) {
+            guessedTitle = parsed;
+            break;
+          }
+        }
+      } catch {
+        // ignore
+      }
     }
 
     // Get existing volumes for duplicate detection
@@ -285,7 +308,10 @@ export async function POST(request: NextRequest) {
     let suggestedMatch: ImportAnalysis["suggestedMatch"] = undefined;
     const titleGuess = guessedTitle || tryParseTitleFromPath(sourcePath);
 
-    if (titleGuess) {
+    // Only auto-select an AniList match when the folder has a confirmed
+    // [anilist-ID] tag. Otherwise, pass the titleGuess so the UI can
+    // open AniList search with it pre-filled and let the user pick.
+    if (titleGuess && guessedAnilistId) {
       try {
         const results = await searchManga(titleGuess);
         if (results.length > 0) {
@@ -313,6 +339,7 @@ export async function POST(request: NextRequest) {
       volumes,
       warnings,
       suggestedMatch,
+      titleGuess: titleGuess || undefined,
     };
 
     updateSession(importSession.id, { status: "ready", analysis });

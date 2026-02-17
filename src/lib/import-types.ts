@@ -10,6 +10,8 @@ export interface ImportAnalysis {
     coverUrl: string;
     totalVolumes: number | null;
   };
+  /** Title guessed from folder/file name — used to pre-fill AniList search */
+  titleGuess?: string;
 }
 
 export interface DetectedVolume {

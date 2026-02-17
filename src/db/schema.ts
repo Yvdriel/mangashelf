@@ -321,7 +321,9 @@ export const downloadHistory = sqliteTable("download_history", {
 
 export const importHistory = sqliteTable("import_history", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  mangaId: integer("manga_id").references(() => manga.id),
+  mangaId: integer("manga_id").references(() => manga.id, {
+    onDelete: "set null",
+  }),
   mangaTitle: text("manga_title").notNull(),
   sourceType: text("source_type").notNull(), // "upload" | "filesystem" | "automated"
   sourcePath: text("source_path").notNull(),

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-export function HealthBadge() {
+export function HealthBadge({ inline = false }: { inline?: boolean }) {
   const [counts, setCounts] = useState<{
     errors: number;
     warnings: number;
@@ -40,7 +40,7 @@ export function HealthBadge() {
 
   return (
     <span
-      className={`absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${color}`}
+      className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${color} ${inline ? "ml-auto" : "absolute -right-1 -top-1"}`}
     >
       {total}
     </span>

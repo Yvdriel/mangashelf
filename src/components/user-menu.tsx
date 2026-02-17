@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { HealthBadge } from "./system/HealthBadge";
 
 interface UserMenuProps {
   userName: string;
@@ -43,10 +44,11 @@ export function UserMenu({ userName, userEmail, isAdmin }: UserMenuProps) {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setOpen(!open)}
-        className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-400/20 text-xs font-semibold text-accent-300 transition-colors hover:bg-accent-400/30"
+        className="relative flex h-8 w-8 items-center justify-center rounded-full bg-accent-400/20 text-xs font-semibold text-accent-300 transition-colors hover:bg-accent-400/30"
         title={userEmail}
       >
         {initials}
+        {isAdmin && <HealthBadge />}
       </button>
 
       {open && (
@@ -105,6 +107,29 @@ export function UserMenu({ userName, userEmail, isAdmin }: UserMenuProps) {
                   />
                 </svg>
                 Admin Panel
+              </Link>
+            )}
+            {isAdmin && (
+              <Link
+                href="/system/status"
+                onClick={() => setOpen(false)}
+                className="relative flex items-center gap-2 px-4 py-2 text-sm text-surface-200 hover:bg-surface-700 hover:text-surface-50 transition-colors"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728M9.172 15.828a4 4 0 010-5.656m5.656 0a4 4 0 010 5.656M12 12h.01"
+                  />
+                </svg>
+                System Status
+                <HealthBadge inline />
               </Link>
             )}
           </div>

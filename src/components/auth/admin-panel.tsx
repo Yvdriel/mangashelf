@@ -80,7 +80,7 @@ export function AdminPanel() {
       )}
 
       {/* User list */}
-      <div className="rounded-lg border border-surface-600 bg-surface-800 overflow-hidden">
+      <div className="rounded-lg border border-surface-600 bg-surface-800">
         <div className="border-b border-surface-600 px-4 py-3">
           <p className="text-sm text-surface-200">
             {total} user{total !== 1 ? "s" : ""}

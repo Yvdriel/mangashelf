@@ -1,1 +1,0 @@
-ALTER TABLE `managed_volume` ADD `error_message` text;

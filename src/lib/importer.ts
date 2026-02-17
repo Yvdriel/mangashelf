@@ -681,7 +681,20 @@ export function importVolumeMove(
     } catch {
       // Cross-device move: fall back to copy + delete
       fs.copyFileSync(sorted[i], dest);
-      fs.unlinkSync(sorted[i]);
+      const srcSize = fs.statSync(sorted[i]).size;
+      const destSize = fs.statSync(dest).size;
+      if (srcSize !== destSize) {
+        throw new Error(
+          `Copy verification failed for ${sorted[i]}: src=${srcSize} dest=${destSize}`,
+        );
+      }
+      try {
+        fs.unlinkSync(sorted[i]);
+      } catch (unlinkErr) {
+        console.warn(
+          `[IMPORT] Could not remove source file ${sorted[i]}: ${unlinkErr}`,
+        );
+      }
     }
   }
 

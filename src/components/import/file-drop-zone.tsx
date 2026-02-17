@@ -179,7 +179,7 @@ export function FileDropZone({
               Drag and drop files here
             </p>
             <p className="text-xs text-surface-400 mb-4">
-              Archives (.zip, .rar, .7z, .cbz, .cbr) or image folders
+              Archives (.zip, .rar, .7z, .cbz, .cbr) or image folders — max 5 GB
             </p>
             <div className="flex items-center gap-2">
               <button

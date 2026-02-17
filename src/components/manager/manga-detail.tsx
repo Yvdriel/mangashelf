@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SearchModal } from "./search-modal";
+import { ConfirmDialog } from "../confirm-dialog";
 import { useDownloadStatus } from "@/contexts/download-status";
 
 interface ManagedMangaData {
@@ -103,6 +104,7 @@ export function MangaDetail({
     volumeNumber?: number;
   } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [checking, setChecking] = useState(false);
   const [approvingId, setApprovingId] = useState<number | null>(null);
 
@@ -118,17 +120,27 @@ export function MangaDetail({
 
   const importedCount = volumes.filter((v) => v.status === "imported").length;
 
-  const handleDelete = useCallback(async () => {
-    if (!confirm("Remove this manga from the manager?")) return;
-    setDeleting(true);
-    try {
-      await fetch(`/api/manager/manga/${manga.id}`, { method: "DELETE" });
-      router.push("/manager");
-      router.refresh();
-    } catch {
-      setDeleting(false);
-    }
-  }, [manga.id, router]);
+  const handleDelete = useCallback(
+    async (option?: string) => {
+      setDeleting(true);
+      setShowDeleteDialog(false);
+      try {
+        await fetch("/api/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            managedMangaIds: [manga.id],
+            deleteFiles: option === "delete_files",
+          }),
+        });
+        router.push("/manager");
+        router.refresh();
+      } catch {
+        setDeleting(false);
+      }
+    },
+    [manga.id, router],
+  );
 
   const handleToggleMonitored = useCallback(async () => {
     await fetch(`/api/manager/manga/${manga.id}`, {
@@ -281,11 +293,11 @@ export function MangaDetail({
                 {checking ? "Checking..." : "Check Now"}
               </button>
               <button
-                onClick={handleDelete}
+                onClick={() => setShowDeleteDialog(true)}
                 disabled={deleting}
                 className="rounded-md border border-surface-500 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10"
               >
-                Remove
+                {deleting ? "Removing..." : "Remove"}
               </button>
             </div>
 
@@ -467,6 +479,32 @@ export function MangaDetail({
             setSearchModal(null);
             router.refresh();
           }}
+        />
+      )}
+
+      {/* Delete confirmation dialog */}
+      {showDeleteDialog && (
+        <ConfirmDialog
+          title="Remove Manga"
+          message={`Remove "${title}" from the manager?`}
+          options={[
+            {
+              value: "tracker_only",
+              label: "Remove from manager only",
+              description: "Keeps files on disk and the library entry intact",
+            },
+            {
+              value: "delete_files",
+              label: "Remove everything including files",
+              description:
+                "Deletes all volumes from disk, removes from library and manager",
+            },
+          ]}
+          defaultOption="tracker_only"
+          confirmLabel="Remove"
+          onConfirm={handleDelete}
+          onCancel={() => setShowDeleteDialog(false)}
+          loading={deleting}
         />
       )}
     </div>

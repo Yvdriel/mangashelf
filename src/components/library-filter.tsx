@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { MangaCard } from "./manga-card";
+import { SelectionBar } from "./selection-bar";
+import { ConfirmDialog } from "./confirm-dialog";
+import { useMultiSelect } from "@/hooks/use-multi-select";
 
 type SortOption = "title" | "recently-read" | "recently-added";
 
@@ -19,10 +23,28 @@ interface MangaItem {
   downloadingCount?: number;
 }
 
-export function LibraryFilter({ manga }: { manga: MangaItem[] }) {
+export function LibraryFilter({
+  manga,
+  isAdmin,
+}: {
+  manga: MangaItem[];
+  isAdmin: boolean;
+}) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("title");
   const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const {
+    selectMode,
+    selectedIds,
+    toggle,
+    selectAll,
+    enterSelectMode,
+    exitSelectMode,
+  } = useMultiSelect<number>();
 
   const allGenres = useMemo(() => {
     const genreSet = new Set<string>();
@@ -73,6 +95,32 @@ export function LibraryFilter({ manga }: { manga: MangaItem[] }) {
     return result;
   }, [manga, search, sort, selectedGenres]);
 
+  const selectedTitles = useMemo(
+    () => manga.filter((m) => selectedIds.has(m.id)).map((m) => m.title),
+    [manga, selectedIds],
+  );
+
+  const handleBulkDelete = useCallback(async () => {
+    setDeleting(true);
+    setShowDeleteDialog(false);
+    try {
+      await fetch("/api/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mangaIds: Array.from(selectedIds),
+          deleteFiles: true,
+        }),
+      });
+      exitSelectMode();
+      router.refresh();
+    } catch {
+      // silently fail
+    } finally {
+      setDeleting(false);
+    }
+  }, [selectedIds, exitSelectMode, router]);
+
   return (
     <div>
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -94,6 +142,18 @@ export function LibraryFilter({ manga }: { manga: MangaItem[] }) {
             <option value="recently-read">Recently Read</option>
             <option value="recently-added">Recently Added</option>
           </select>
+          {isAdmin && (
+            <button
+              onClick={selectMode ? exitSelectMode : enterSelectMode}
+              className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+                selectMode
+                  ? "border-accent-400 text-accent-300 bg-accent-400/10"
+                  : "border-surface-600 text-surface-200 hover:bg-surface-700"
+              }`}
+            >
+              {selectMode ? "Done" : "Select"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -126,7 +186,13 @@ export function LibraryFilter({ manga }: { manga: MangaItem[] }) {
       {filtered.length > 0 ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {filtered.map((m) => (
-            <MangaCard key={m.id} manga={m} />
+            <MangaCard
+              key={m.id}
+              manga={m}
+              selectMode={selectMode}
+              isSelected={selectedIds.has(m.id)}
+              onToggleSelect={() => toggle(m.id)}
+            />
           ))}
         </div>
       ) : manga.length === 0 ? (
@@ -143,6 +209,33 @@ export function LibraryFilter({ manga }: { manga: MangaItem[] }) {
           </p>
         </div>
       )}
+
+      {/* Selection bar */}
+      {selectMode && selectedIds.size > 0 && (
+        <SelectionBar
+          selectedCount={selectedIds.size}
+          totalCount={filtered.length}
+          onSelectAll={() => selectAll(filtered.map((m) => m.id))}
+          onCancel={exitSelectMode}
+          onDelete={() => setShowDeleteDialog(true)}
+        />
+      )}
+
+      {/* Bulk delete confirmation */}
+      {showDeleteDialog && (
+        <ConfirmDialog
+          title="Delete Manga"
+          message={`Delete ${selectedIds.size} manga from disk? All volumes and reading progress will be removed. This also removes them from the manager if tracked.`}
+          items={selectedTitles}
+          confirmLabel={`Delete ${selectedIds.size} Manga`}
+          onConfirm={handleBulkDelete}
+          onCancel={() => setShowDeleteDialog(false)}
+          loading={deleting}
+        />
+      )}
+
+      {/* Spacer when selection bar is visible */}
+      {selectMode && selectedIds.size > 0 && <div className="h-16" />}
     </div>
   );
 }

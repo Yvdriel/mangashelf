@@ -12,6 +12,7 @@ import { getSession } from "@/lib/auth-helpers";
 import Image from "next/image";
 import Link from "next/link";
 import { MangaDescription } from "@/components/manga-description";
+import { DeleteMangaButton } from "@/components/delete-manga-button";
 
 export const dynamic = "force-dynamic";
 
@@ -220,18 +221,27 @@ export default async function MangaDetailPage({
               </div>
             )}
 
-            {targetVolume && (
-              <Link
-                href={`/manga/${mangaId}/read/${targetVolume.volumeNumber}${targetPage > 0 ? `?p=${targetPage}` : ""}`}
-                className="mt-4 inline-flex w-fit items-center rounded-md bg-accent-400 px-4 py-2 text-sm font-medium text-surface-900 transition-colors hover:bg-accent-300"
-              >
-                {continueVolume
-                  ? `Continue Reading · Vol ${continueVolume.volumeNumber}`
-                  : firstUnread
-                    ? `Start Reading · Vol ${firstUnread.volumeNumber}`
-                    : `Read Vol ${targetVolume.volumeNumber}`}
-              </Link>
-            )}
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {targetVolume && (
+                <Link
+                  href={`/manga/${mangaId}/read/${targetVolume.volumeNumber}${targetPage > 0 ? `?p=${targetPage}` : ""}`}
+                  className="inline-flex w-fit items-center rounded-md bg-accent-400 px-4 py-2 text-sm font-medium text-surface-900 transition-colors hover:bg-accent-300"
+                >
+                  {continueVolume
+                    ? `Continue Reading · Vol ${continueVolume.volumeNumber}`
+                    : firstUnread
+                      ? `Start Reading · Vol ${firstUnread.volumeNumber}`
+                      : `Read Vol ${targetVolume.volumeNumber}`}
+                </Link>
+              )}
+              {session.user.role === "admin" && (
+                <DeleteMangaButton
+                  mangaId={mangaId}
+                  title={mangaData.title}
+                  totalVolumes={volumes.length}
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>

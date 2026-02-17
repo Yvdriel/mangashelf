@@ -29,6 +29,7 @@ RUN adduser --system --uid 1001 nextjs
 RUN mkdir -p /data && chown nextjs:nodejs /data
 RUN mkdir -p /manga /manga/.covers /manga/.thumbnails && chown -R nextjs:nodejs /manga/.covers /manga/.thumbnails
 RUN mkdir -p /tmp/mangashelf-extract && chown nextjs:nodejs /tmp/mangashelf-extract
+RUN mkdir -p /tmp/mangashelf-import && chown nextjs:nodejs /tmp/mangashelf-import
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

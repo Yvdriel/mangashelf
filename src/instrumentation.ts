@@ -18,5 +18,9 @@ export async function register() {
     // Start automatic monitoring (search & download missing volumes)
     const { startMonitorInterval } = await import("./lib/monitor");
     startMonitorInterval();
+
+    // Clean up stale import sessions from previous runs
+    const { cleanupStaleSessions } = await import("./lib/import-session");
+    cleanupStaleSessions({ startup: true });
   }
 }

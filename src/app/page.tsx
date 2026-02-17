@@ -101,7 +101,10 @@ export default async function LibraryPage() {
 
   return (
     <div>
-      <LibraryFilter manga={mangaWithProgress} />
+      <LibraryFilter
+        manga={mangaWithProgress}
+        isAdmin={session.user.role === "admin"}
+      />
     </div>
   );
 }

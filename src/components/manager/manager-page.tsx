@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { SelectionBar } from "../selection-bar";
+import { ConfirmDialog } from "../confirm-dialog";
+import { useMultiSelect } from "@/hooks/use-multi-select";
 
 interface AniListResult {
   id: number;
@@ -54,6 +57,51 @@ export function ManagerPage({
   );
   const [addingId, setAddingId] = useState<number | null>(null);
   const [runningMonitor, setRunningMonitor] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const {
+    selectMode,
+    selectedIds,
+    toggle,
+    selectAll,
+    enterSelectMode,
+    exitSelectMode,
+  } = useMultiSelect<number>();
+
+  const selectedTitles = useMemo(
+    () =>
+      managedManga
+        .filter((m) => selectedIds.has(m.id))
+        .map(
+          (m) => m.titleNative || m.titleRomaji || m.titleEnglish || "Unknown",
+        ),
+    [managedManga, selectedIds],
+  );
+
+  const handleBulkDelete = useCallback(
+    async (option?: string) => {
+      setDeleting(true);
+      setShowDeleteDialog(false);
+      try {
+        await fetch("/api/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            managedMangaIds: Array.from(selectedIds),
+            deleteFiles: option === "delete_files",
+          }),
+        });
+        exitSelectMode();
+        router.refresh();
+      } catch {
+        // silently fail
+      } finally {
+        setDeleting(false);
+      }
+    },
+    [selectedIds, exitSelectMode, router],
+  );
 
   // Debounced search
   useEffect(() => {
@@ -233,15 +281,35 @@ export function ManagerPage({
       {/* Managed manga library */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Managed Library</h2>
-        {managedManga.length > 0 && (
-          <button
-            onClick={handleRunMonitor}
-            disabled={runningMonitor}
-            className="rounded-md border border-surface-500 px-3 py-1.5 text-xs font-medium text-surface-200 transition-colors hover:bg-surface-700 disabled:opacity-50"
+        <div className="flex items-center gap-2">
+          <Link
+            href="/manager/import"
+            className="rounded-md border border-surface-500 px-3 py-1.5 text-xs font-medium text-surface-200 transition-colors hover:bg-surface-700"
           >
-            {runningMonitor ? "Monitoring..." : "Run Monitor"}
-          </button>
-        )}
+            Manual Import
+          </Link>
+          {managedManga.length > 0 && (
+            <>
+              <button
+                onClick={handleRunMonitor}
+                disabled={runningMonitor}
+                className="rounded-md border border-surface-500 px-3 py-1.5 text-xs font-medium text-surface-200 transition-colors hover:bg-surface-700 disabled:opacity-50"
+              >
+                {runningMonitor ? "Monitoring..." : "Run Monitor"}
+              </button>
+              <button
+                onClick={selectMode ? exitSelectMode : enterSelectMode}
+                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  selectMode
+                    ? "border-accent-400 text-accent-300 bg-accent-400/10"
+                    : "border-surface-500 text-surface-200 hover:bg-surface-700"
+                }`}
+              >
+                {selectMode ? "Done" : "Select"}
+              </button>
+            </>
+          )}
+        </div>
       </div>
       {managedManga.length === 0 ? (
         <p className="text-sm text-surface-300">
@@ -254,13 +322,10 @@ export function ManagerPage({
               manga.volumeCount > 0
                 ? Math.round((manga.importedCount / manga.volumeCount) * 100)
                 : 0;
+            const isSelected = selectedIds.has(manga.id);
 
-            return (
-              <Link
-                key={manga.id}
-                href={`/manager/${manga.id}`}
-                className="group overflow-hidden rounded-lg border border-surface-600 bg-surface-700 transition-all hover:border-surface-400 hover:shadow-lg hover:shadow-surface-900/50"
-              >
+            const cardContent = (
+              <>
                 <div className="relative aspect-2/3 overflow-hidden bg-surface-600">
                   {manga.coverImage ? (
                     <img
@@ -273,7 +338,35 @@ export function ManagerPage({
                       No Cover
                     </div>
                   )}
-                  {manga.monitored && (
+                  {/* Selection checkbox */}
+                  {selectMode && (
+                    <div className="absolute top-2 left-2 z-10">
+                      <div
+                        className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors ${
+                          isSelected
+                            ? "border-accent-400 bg-accent-400"
+                            : "border-white/70 bg-black/30"
+                        }`}
+                      >
+                        {isSelected && (
+                          <svg
+                            className="h-3 w-3 text-surface-900"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={3}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M4.5 12.75l6 6 9-13.5"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {!selectMode && manga.monitored && (
                     <div
                       className="absolute top-2 left-2 rounded-full bg-surface-900/70 p-1"
                       title="Monitored"
@@ -293,7 +386,7 @@ export function ManagerPage({
                       </svg>
                     </div>
                   )}
-                  {manga.downloadingCount > 0 && (
+                  {!selectMode && manga.downloadingCount > 0 && (
                     <div className="absolute top-2 right-2 rounded-full bg-blue-500 px-2 py-0.5 text-[10px] font-medium text-white">
                       {manga.downloadingCount} downloading
                     </div>
@@ -322,11 +415,78 @@ export function ManagerPage({
                     </p>
                   )}
                 </div>
+              </>
+            );
+
+            if (selectMode) {
+              return (
+                <div
+                  key={manga.id}
+                  onClick={() => toggle(manga.id)}
+                  className={`group cursor-pointer overflow-hidden rounded-lg border bg-surface-700 transition-all hover:border-surface-400 hover:shadow-lg hover:shadow-surface-900/50 ${
+                    isSelected
+                      ? "border-accent-400 ring-2 ring-accent-400/30"
+                      : "border-surface-600"
+                  }`}
+                >
+                  {cardContent}
+                </div>
+              );
+            }
+
+            return (
+              <Link
+                key={manga.id}
+                href={`/manager/${manga.id}`}
+                className="group overflow-hidden rounded-lg border border-surface-600 bg-surface-700 transition-all hover:border-surface-400 hover:shadow-lg hover:shadow-surface-900/50"
+              >
+                {cardContent}
               </Link>
             );
           })}
         </div>
       )}
+
+      {/* Selection bar */}
+      {selectMode && selectedIds.size > 0 && (
+        <SelectionBar
+          selectedCount={selectedIds.size}
+          totalCount={managedManga.length}
+          onSelectAll={() => selectAll(managedManga.map((m) => m.id))}
+          onCancel={exitSelectMode}
+          onDelete={() => setShowDeleteDialog(true)}
+        />
+      )}
+
+      {/* Bulk delete confirmation */}
+      {showDeleteDialog && (
+        <ConfirmDialog
+          title="Remove Manga"
+          message={`Remove ${selectedIds.size} manga from the manager?`}
+          items={selectedTitles}
+          options={[
+            {
+              value: "tracker_only",
+              label: "Remove from manager only",
+              description: "Keeps files on disk and library entries intact",
+            },
+            {
+              value: "delete_files",
+              label: "Remove everything including files",
+              description:
+                "Deletes all volumes from disk, removes from library and manager",
+            },
+          ]}
+          defaultOption="tracker_only"
+          confirmLabel={`Remove ${selectedIds.size} Manga`}
+          onConfirm={handleBulkDelete}
+          onCancel={() => setShowDeleteDialog(false)}
+          loading={deleting}
+        />
+      )}
+
+      {/* Spacer when selection bar is visible */}
+      {selectMode && selectedIds.size > 0 && <div className="h-16" />}
     </div>
   );
 }

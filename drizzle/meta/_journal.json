@@ -8,6 +8,20 @@
       "when": 1770901013698,
       "tag": "0000_unusual_vengeance",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1771312510793,
+      "tag": "0001_bored_tusk",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1771317227616,
+      "tag": "0002_supreme_komodo",
+      "breakpoints": true
     }
   ]
 }

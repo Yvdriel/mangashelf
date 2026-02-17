@@ -35,7 +35,7 @@ function isImageFile(name: string): boolean {
 }
 
 /** Find all image files directly inside a directory (non-recursive). */
-function findDirectImageFiles(dir: string): string[] {
+export function findDirectImageFiles(dir: string): string[] {
   if (!fs.existsSync(dir)) return [];
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   return entries
@@ -44,7 +44,7 @@ function findDirectImageFiles(dir: string): string[] {
 }
 
 /** Recursively find all image files under a directory. */
-function findImageFiles(dir: string): string[] {
+export function findImageFiles(dir: string): string[] {
   if (!fs.existsSync(dir)) return [];
 
   const files: string[] = [];
@@ -77,7 +77,7 @@ function findImageFiles(dir: string): string[] {
  * images, the subdirectories are treated as volumes and the loose images are
  * treated as a separate volume (the folder itself is included).
  */
-function findVolumeFolders(rootPath: string): string[] {
+export function findVolumeFolders(rootPath: string): string[] {
   if (!fs.existsSync(rootPath) || !fs.statSync(rootPath).isDirectory())
     return [];
 
@@ -129,7 +129,7 @@ function findVolumeFolders(rootPath: string): string[] {
  * - Fullwidth space \u3000 → regular space
  * - Trim whitespace (including fullwidth) from both ends
  */
-function normalizeFolderName(name: string): string {
+export function normalizeFolderName(name: string): string {
   let n = name.normalize("NFC");
   // Fullwidth digits U+FF10-U+FF19 → 0-9
   n = n.replace(/[\uFF10-\uFF19]/g, (ch) =>
@@ -174,7 +174,7 @@ const VOLUME_PATTERNS: { name: string; regex: RegExp; group: number }[] = [
   { name: "trailing number", regex: /(\d+)\s*$/, group: 1 },
 ];
 
-function extractVolumeNumber(
+export function extractVolumeNumber(
   folderName: string,
 ): { number: number; pattern: string } | null {
   const normalized = normalizeFolderName(folderName);
@@ -194,7 +194,7 @@ function extractVolumeNumber(
  * Try extracting a volume number from the folder itself, then walk up to
  * parent/grandparent as a fallback. Stops at downloadRoot.
  */
-function extractVolumeNumberWithAncestors(
+export function extractVolumeNumberWithAncestors(
   folderPath: string,
   downloadRoot: string,
 ): { number: number; pattern: string } | null {
@@ -300,7 +300,7 @@ function resolveDuplicate(candidates: VolumeCandidate[]): VolumeCandidate {
 // Step 3: Assign volume numbers with fallbacks and duplicate resolution
 // ---------------------------------------------------------------------------
 
-function assignVolumeNumbers(
+export function assignVolumeNumbers(
   folderPaths: string[],
   existingVolumes: number[],
   downloadRoot: string,
@@ -542,7 +542,7 @@ function compareSortKeys(a: SortKey, b: SortKey): number {
  * Sort image files into correct reading order.
  * Falls back to lexicographic sort if parsed keys are mostly unusable.
  */
-function sortImageFiles(files: string[]): string[] {
+export function sortImageFiles(files: string[]): string[] {
   if (files.length === 0) return [];
 
   const basenames = files.map((f) => path.parse(f).name);
@@ -586,7 +586,7 @@ function sortImageFiles(files: string[]): string[] {
 // Step 5: Import a single volume to the library
 // ---------------------------------------------------------------------------
 
-function importVolume(
+export function importVolume(
   sourcePath: string,
   mangaTitle: string,
   anilistId: number,
@@ -635,11 +635,81 @@ function importVolume(
   return true;
 }
 
+/**
+ * Import a volume using move semantics instead of copy.
+ * Uses rename when possible (same filesystem), falls back to copy+delete
+ * for cross-device moves.
+ */
+export function importVolumeMove(
+  sourcePath: string,
+  mangaTitle: string,
+  anilistId: number,
+  volumeNumber: number,
+): boolean {
+  const volLabel = `v${String(volumeNumber).padStart(2, "0")}`;
+  const targetDir = path.join(
+    MANGA_DIR,
+    `${mangaTitle} [anilist-${anilistId}]`,
+    volLabel,
+  );
+
+  if (fs.existsSync(targetDir)) {
+    console.log(
+      `[IMPORT] Skipping ${volLabel} — already exists in target directory`,
+    );
+    return true;
+  }
+
+  const imageFiles = findImageFiles(sourcePath);
+  if (imageFiles.length === 0) {
+    console.log(`[IMPORT] ${volLabel}: no image files found in ${sourcePath}`);
+    return false;
+  }
+
+  const sorted = sortImageFiles(imageFiles);
+
+  fs.mkdirSync(targetDir, { recursive: true });
+
+  const padWidth = sorted.length >= 1000 ? 4 : 3;
+
+  for (let i = 0; i < sorted.length; i++) {
+    const ext = path.extname(sorted[i]).toLowerCase();
+    const newName = String(i + 1).padStart(padWidth, "0") + ext;
+    const dest = path.join(targetDir, newName);
+    try {
+      fs.renameSync(sorted[i], dest);
+    } catch {
+      // Cross-device move: fall back to copy + delete
+      fs.copyFileSync(sorted[i], dest);
+      const srcSize = fs.statSync(sorted[i]).size;
+      const destSize = fs.statSync(dest).size;
+      if (srcSize !== destSize) {
+        throw new Error(
+          `Copy verification failed for ${sorted[i]}: src=${srcSize} dest=${destSize}`,
+        );
+      }
+      try {
+        fs.unlinkSync(sorted[i]);
+      } catch (unlinkErr) {
+        console.warn(
+          `[IMPORT] Could not remove source file ${sorted[i]}: ${unlinkErr}`,
+        );
+      }
+    }
+  }
+
+  console.log(
+    `[IMPORT] ${volLabel}: ${sorted.length} pages moved to ${volLabel}/`,
+  );
+
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // Step 6: Helper to get existing imported volume numbers for a manga
 // ---------------------------------------------------------------------------
 
-function getExistingVolumeNumbers(
+export function getExistingVolumeNumbers(
   mangaTitle: string,
   anilistId: number,
 ): number[] {

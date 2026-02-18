@@ -114,7 +114,7 @@ export function ThemeProvider({
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ theme: pref }),
-    }).catch(() => {});
+    }).catch((err) => console.warn("Failed to persist theme preference:", err));
   }, []);
 
   return (

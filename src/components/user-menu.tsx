@@ -44,7 +44,7 @@ export function UserMenu({ userName, userEmail, isAdmin }: UserMenuProps) {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setOpen(!open)}
-        className="relative flex h-8 w-8 items-center justify-center rounded-full bg-accent-400/20 text-xs font-semibold text-accent-300 transition-colors hover:bg-accent-400/30"
+        className="relative flex h-8 w-8 items-center justify-center rounded-full bg-accent-400/20 text-xs font-semibold text-accent-300 transition-colors hover:bg-accent-400/30 hover:cursor-pointer"
         title={userEmail}
       >
         {initials}

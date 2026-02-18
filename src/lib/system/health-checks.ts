@@ -292,13 +292,11 @@ export function runHealthChecks(context: {
     // Skip
   }
 
-  // Staging not writable
+  // Staging not writable (only check if it already exists)
   try {
-    // Ensure staging dir exists first
-    if (!fs.existsSync(STAGING_DIR)) {
-      fs.mkdirSync(STAGING_DIR, { recursive: true });
+    if (fs.existsSync(STAGING_DIR)) {
+      fs.accessSync(STAGING_DIR, fs.constants.W_OK);
     }
-    fs.accessSync(STAGING_DIR, fs.constants.W_OK);
   } catch {
     checks.push({
       id: "staging-not-writable",

@@ -213,7 +213,7 @@ export function MangaDetail({
 
         <div className="relative mx-auto flex max-w-7xl gap-6 px-4 pt-8 pb-4">
           {/* Cover */}
-          <div className="w-40 shrink-0 overflow-hidden rounded-lg bg-surface-600 shadow-xl">
+          <div className="w-40 shrink-0 overflow-hidden rounded-lg bg-surface-600 shadow-xl h-fit">
             {manga.coverImage ? (
               <img
                 src={manga.coverImage}

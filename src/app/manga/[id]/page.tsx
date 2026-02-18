@@ -155,7 +155,7 @@ export default async function MangaDetailPage({
         </div>
 
         <div className="relative mx-auto flex max-w-7xl gap-6 px-4 pt-8 pb-4">
-          <div className="w-40 shrink-0 overflow-hidden rounded-lg bg-surface-600 shadow-xl">
+          <div className="w-40 shrink-0 overflow-hidden rounded-lg bg-surface-600 shadow-xl h-fit">
             {coverThumb ? (
               <Image
                 src={coverThumb}

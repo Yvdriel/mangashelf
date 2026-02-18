@@ -2,7 +2,7 @@
 
 /* Baseline: registers color tokens with Tailwind v4.
    Values here are the dark theme defaults. */
-@theme inline {
+@theme {
   --color-accent-50: oklch(0.97 0.014 350);
   --color-accent-100: oklch(0.94 0.028 350);
   --color-accent-200: oklch(0.88 0.05 350);

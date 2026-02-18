@@ -98,7 +98,7 @@ export function ThemePicker() {
             key={pref}
             type="button"
             onClick={() => setTheme(pref)}
-            className={`flex flex-col items-center gap-2 rounded-lg border p-2 transition-colors ${
+            className={`flex flex-col items-center gap-2 rounded-lg border p-2 transition-colors hover:cursor-pointer ${
               isSelected
                 ? "border-accent-400 bg-accent-400/10"
                 : "border-surface-600 hover:border-surface-400"

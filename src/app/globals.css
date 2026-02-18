@@ -120,3 +120,17 @@ html:not([data-no-transition]) {
   transition-property: background-color, color, border-color;
   transition-duration: 0.2s;
 }
+
+/* PWA standalone: fill every pixel of the screen.
+   In standalone mode there is no browser chrome, so the reader
+   should render behind the home indicator just like it does
+   behind the Dynamic Island. */
+@media (display-mode: standalone) {
+  html,
+  body {
+    height: 100%;
+  }
+  .reader-progress {
+    padding-bottom: 0 !important;
+  }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { ServiceStatus } from "./StatusPage";
 
 interface ServiceCardProps {
@@ -40,10 +40,12 @@ export function ServiceCard({ service }: ServiceCardProps) {
   const [testing, setTesting] = useState(false);
   const [current, setCurrent] = useState(service);
 
-  // Update when parent data changes
-  if (service.lastChecked !== current.lastChecked && !testing) {
-    setCurrent(service);
-  }
+  // Sync with parent data when it changes
+  useEffect(() => {
+    if (!testing) {
+      setCurrent(service);
+    }
+  }, [service, testing]);
 
   const handleTest = useCallback(async () => {
     setTesting(true);

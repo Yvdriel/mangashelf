@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { SystemInfo, VersionCheckResult } from "./StatusPage";
 
 interface SystemAboutProps {
@@ -34,12 +34,16 @@ export function SystemAbout({ system, versionCheck }: SystemAboutProps) {
   const [cleaning, setCleaning] = useState(false);
   const [cleanResult, setCleanResult] = useState<string | null>(null);
   const [confirmVacuum, setConfirmVacuum] = useState(false);
+  const confirmTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
   const handleVacuum = useCallback(async () => {
     if (!confirmVacuum) {
       setConfirmVacuum(true);
+      if (confirmTimer.current) clearTimeout(confirmTimer.current);
+      confirmTimer.current = setTimeout(() => setConfirmVacuum(false), 5000);
       return;
     }
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
     setVacuuming(true);
     setConfirmVacuum(false);
     try {

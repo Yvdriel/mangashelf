@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { authClient } from "@/lib/auth-client";
+import { ThemePicker } from "@/components/theme-picker";
 import QRCode from "qrcode";
 
 interface AccountSettingsProps {
@@ -12,6 +13,10 @@ interface AccountSettingsProps {
 export function AccountSettings({ userName, userEmail }: AccountSettingsProps) {
   return (
     <div className="space-y-8 max-w-2xl">
+      <section className="rounded-lg border border-surface-600 bg-surface-800 p-6">
+        <h2 className="text-base font-semibold mb-4">Theme</h2>
+        <ThemePicker />
+      </section>
       <ProfileSection userName={userName} userEmail={userEmail} />
       <ChangePasswordSection />
       <TwoFactorSection />

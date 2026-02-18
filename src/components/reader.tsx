@@ -157,6 +157,7 @@ export function Reader({
   return (
     <div
       ref={containerRef}
+      data-theme="dark"
       className="fixed inset-0 z-50 overflow-y-auto bg-surface-900"
       onClick={handleTap}
     >

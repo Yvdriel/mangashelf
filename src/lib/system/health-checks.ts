@@ -213,7 +213,7 @@ export function runHealthChecks(context: {
           severity: "warning",
           category: "storage",
           title: "Orphaned staging directories",
-          message: `${orphanedCount} orphaned import staging director${orphanedCount === 1 ? "y" : "ies"} found. Use "Clean Up" to remove.`,
+          message: `${orphanedCount} orphaned import staging ${orphanedCount === 1 ? "directory" : "directories"} found. Use "Clean Up" to remove.`,
         });
       }
     }

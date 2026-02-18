@@ -162,6 +162,23 @@ export const passkeyRelations = relations(passkey, ({ one }) => ({
   }),
 }));
 
+// --- User preferences ---
+
+export const userPreferences = sqliteTable("user_preferences", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id")
+    .notNull()
+    .unique()
+    .references(() => user.id, { onDelete: "cascade" }),
+  theme: text("theme").notNull().default("system"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
 // --- Reader tables ---
 
 export const manga = sqliteTable("manga", {

@@ -151,13 +151,12 @@ async function checkJackett(): Promise<ServiceStatus> {
   const signal = AbortSignal.timeout(CHECK_TIMEOUT);
 
   try {
-    // Check server config
-    const configRes = await fetch(
-      `${JACKETT_URL}/api/v2.0/server/config?apikey=${JACKETT_API_KEY}`,
+    const res = await fetch(
+      `${JACKETT_URL}/api/v2.0/indexers?configured=true&apikey=${JACKETT_API_KEY}`,
       { signal },
     );
 
-    if (configRes.status === 401 || configRes.status === 403) {
+    if (res.status === 401 || res.status === 403) {
       return {
         name: "Jackett",
         status: "error",
@@ -167,55 +166,23 @@ async function checkJackett(): Promise<ServiceStatus> {
       };
     }
 
-    if (!configRes.ok) {
-      // Try the indexers endpoint instead (some Jackett versions don't have /server/config)
-      const indexerRes = await fetch(
-        `${JACKETT_URL}/api/v2.0/indexers?configured=true&apikey=${JACKETT_API_KEY}`,
-        { signal },
-      );
-
-      if (!indexerRes.ok) {
-        return {
-          name: "Jackett",
-          status: "error",
-          message: `HTTP ${indexerRes.status}`,
-          responseTimeMs: Date.now() - start,
-          lastChecked: new Date().toISOString(),
-        };
-      }
-
-      const indexers = (await indexerRes.json()) as unknown[];
+    if (!res.ok) {
       return {
         name: "Jackett",
-        status: indexers.length === 0 ? "degraded" : "connected",
-        message: indexers.length === 0 ? "No indexers configured" : undefined,
+        status: "error",
+        message: `HTTP ${res.status}`,
         responseTimeMs: Date.now() - start,
-        details: { configuredIndexers: indexers.length },
         lastChecked: new Date().toISOString(),
       };
     }
 
-    // Config endpoint works — also get indexer count
-    let configuredIndexers = 0;
-    try {
-      const indexerRes = await fetch(
-        `${JACKETT_URL}/api/v2.0/indexers?configured=true&apikey=${JACKETT_API_KEY}`,
-        { signal },
-      );
-      if (indexerRes.ok) {
-        const indexers = (await indexerRes.json()) as unknown[];
-        configuredIndexers = indexers.length;
-      }
-    } catch {
-      // Indexer count is best-effort
-    }
-
+    const indexers = (await res.json()) as unknown[];
     return {
       name: "Jackett",
-      status: configuredIndexers === 0 ? "degraded" : "connected",
-      message: configuredIndexers === 0 ? "No indexers configured" : undefined,
+      status: indexers.length === 0 ? "degraded" : "connected",
+      message: indexers.length === 0 ? "No indexers configured" : undefined,
       responseTimeMs: Date.now() - start,
-      details: { configuredIndexers },
+      details: { configuredIndexers: indexers.length },
       lastChecked: new Date().toISOString(),
     };
   } catch (e) {

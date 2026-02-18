@@ -39,7 +39,7 @@ export async function searchTorrents(
     params.append("Category[]", String(cat));
   }
 
-  const url = `${JACKETT_URL}/api/v2.0/indexers/all/results?${params}`;
+  const url = `${JACKETT_URL}/api/v2.0/indexers/nyaasi/results?${params}`;
   console.log(`[Jackett] Searching: ${query}`);
 
   const res = await fetch(url);

@@ -121,19 +121,13 @@ html:not([data-no-transition]) {
   transition-duration: 0.2s;
 }
 
-/* PWA standalone: fill every pixel of the screen.
-   In standalone mode there is no browser chrome, so the reader
-   should render behind the home indicator just like it does
-   behind the Dynamic Island. */
+/* PWA standalone reader: fill every pixel of the screen.
+   On iOS PWA, fixed elements with bottom:0 stop at the safe-area
+   boundary. Pull the reader past it so content reaches the screen edge. */
 @media (display-mode: standalone) {
-  html,
-  body {
-    height: -webkit-fill-available;
-  }
   .reader-container {
-    height: 100vh;
-    height: 100dvh;
-    height: -webkit-fill-available;
+    bottom: calc(-1 * env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   .reader-progress {
     padding-bottom: 0 !important;

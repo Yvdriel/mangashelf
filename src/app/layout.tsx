@@ -29,13 +29,19 @@ export const metadata: Metadata = {
   title: "MangaShelf",
   description: "Self-hosted manga reader",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "MangaShelf",
-  },
-  other: {
-    "apple-touch-icon": "/icons/icon-192.png",
   },
 };
 
@@ -95,10 +101,9 @@ export default async function RootLayout({
                 <div className="flex items-center gap-6">
                   <Link
                     href="/"
-                    className="text-lg font-semibold tracking-tight text-accent-300 hover:text-accent-200 transition-colors"
+                    className="hover:opacity-80 transition-opacity"
                   >
-                    <span className="max-sm:hidden">MangaShelf</span>
-                    <span className="sm:hidden">MS</span>
+                    <img src="/icon.svg" alt="MangaShelf" className="h-8 w-8" />
                   </Link>
                   {session && <Nav isAdmin={isAdmin} />}
                 </div>

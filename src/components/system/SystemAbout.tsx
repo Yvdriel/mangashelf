@@ -234,7 +234,7 @@ export function SystemAbout({ system, versionCheck }: SystemAboutProps) {
             : vacuumResult
               ? vacuumResult
               : confirmVacuum
-                ? "Click again to confirm"
+                ? "May briefly block DB — confirm?"
                 : "Vacuum Database"}
         </button>
       </div>

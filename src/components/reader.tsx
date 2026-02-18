@@ -158,7 +158,8 @@ export function Reader({
     <div
       ref={containerRef}
       data-theme="dark"
-      className="fixed inset-0 z-50 overflow-y-auto bg-surface-900"
+      className="fixed top-0 right-0 left-0 z-50 overflow-y-auto bg-surface-900"
+      style={{ bottom: "calc(-1 * env(safe-area-inset-bottom, 0px))" }}
       onClick={handleTap}
     >
       {/* Top overlay */}

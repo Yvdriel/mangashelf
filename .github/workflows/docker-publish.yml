@@ -3,7 +3,7 @@ name: Build and Push Docker Image
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ["v*"]
 
 env:
   REGISTRY: ghcr.io
@@ -27,10 +27,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set build date
+        id: date
+        run: echo "value=${{ github.event.head_commit.timestamp || format('{0}Z', github.event.repository.updated_at) }}" >> "$GITHUB_OUTPUT"
+        shell: bash
+
       - uses: docker/build-push-action@v5
         with:
           context: .
           push: true
+          build-args: |
+            BUILD_COMMIT_SHA=${{ github.sha }}
+            BUILD_DATE=${{ steps.date.outputs.value }}
           tags: |
             ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:latest
             ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:${{ github.sha }}

@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import type { ImportAnalysis } from "./import-types";
+import { registerTask } from "./background/task-registry";
 
 const STAGING_DIR = process.env.IMPORT_STAGING_DIR || "/tmp/mangashelf-import";
 const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -153,3 +154,12 @@ export function cleanupStaleSessions(
     console.error("[IMPORT] Failed to clean up orphaned staging dirs:", e);
   }
 }
+
+registerTask("staging-cleanup", {
+  description: "Clean up orphaned import staging directories",
+  intervalMs: 0, // on-demand only
+  run: () => {
+    cleanupStaleSessions();
+    return "Staging cleanup completed";
+  },
+});

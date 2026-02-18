@@ -56,7 +56,8 @@ export default async function RootLayout({
                   href="/"
                   className="text-lg font-semibold tracking-tight text-accent-300 hover:text-accent-200 transition-colors"
                 >
-                  MangaShelf
+                  <span className="max-sm:hidden">MangaShelf</span>
+                  <span className="sm:hidden">MS</span>
                 </Link>
                 {session && <Nav isAdmin={isAdmin} />}
               </div>

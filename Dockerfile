@@ -20,9 +20,15 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 
+ARG BUILD_COMMIT_SHA="unknown"
+ARG BUILD_DATE=""
 ENV NODE_ENV=production
 ENV MANGA_DIR=/manga
 ENV DATABASE_URL=/data/mangashelf.db
+ENV BUILD_COMMIT_SHA=${BUILD_COMMIT_SHA}
+ENV BUILD_DATE=${BUILD_DATE}
+LABEL org.opencontainers.image.revision="${BUILD_COMMIT_SHA}"
+LABEL org.opencontainers.image.created="${BUILD_DATE}"
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs

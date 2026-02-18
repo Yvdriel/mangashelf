@@ -17,6 +17,7 @@ import {
   isThemePreference,
 } from "@/lib/theme";
 import type { Theme, ThemePreference } from "@/lib/theme";
+import { Logo } from "@/components/logo";
 import Link from "next/link";
 import "./globals.css";
 
@@ -103,7 +104,7 @@ export default async function RootLayout({
                     href="/"
                     className="hover:opacity-80 transition-opacity"
                   >
-                    <img src="/icon.svg" alt="MangaShelf" className="h-8 w-8" />
+                    <Logo className="h-8 w-8" />
                   </Link>
                   {session && <Nav isAdmin={isAdmin} />}
                 </div>

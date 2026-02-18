@@ -155,16 +155,21 @@ async function queryGhcr(identity: BuildIdentity): Promise<VersionCheckResult> {
   let latestSha: { commitSha: string; shortSha: string } | null = null;
   try {
     const tags = await listTags(token);
-    const shaTags = tags.filter(
-      (t) => SHA_REGEX.test(t) && t !== identity.commitSha,
+    const shaTags = tags
+      .filter((t) => SHA_REGEX.test(t) && t !== identity.commitSha)
+      .slice(0, 20); // Limit to 20 most recent tags
+
+    // Check all SHA tags in parallel
+    const results = await Promise.all(
+      shaTags.map(async (tag) => ({
+        tag,
+        digest: await getManifestDigest(token, tag),
+      })),
     );
 
-    for (const tag of shaTags) {
-      const digest = await getManifestDigest(token, tag);
-      if (digest === latestDigest) {
-        latestSha = { commitSha: tag, shortSha: tag.slice(0, 7) };
-        break;
-      }
+    const match = results.find((r) => r.digest === latestDigest);
+    if (match) {
+      latestSha = { commitSha: match.tag, shortSha: match.tag.slice(0, 7) };
     }
   } catch {
     // Best-effort: we already know an update is available

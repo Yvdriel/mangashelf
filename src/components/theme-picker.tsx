@@ -28,7 +28,7 @@ const SWATCH_COLORS: Record<
   chalk: {
     bg: "oklch(0.96 0.008 70)",
     card: "oklch(0.99 0.004 70)",
-    accent: "oklch(0.58 0.16 350)",
+    accent: "oklch(0.82 0.08 2)",
     text: "oklch(0.22 0.012 50)",
   },
   sakura: {

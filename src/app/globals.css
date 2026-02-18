@@ -128,7 +128,12 @@ html:not([data-no-transition]) {
 @media (display-mode: standalone) {
   html,
   body {
-    height: 100%;
+    height: -webkit-fill-available;
+  }
+  .reader-container {
+    height: 100vh;
+    height: 100dvh;
+    height: -webkit-fill-available;
   }
   .reader-progress {
     padding-bottom: 0 !important;

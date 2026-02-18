@@ -129,9 +129,11 @@ export async function triggerTask(
   if (task.status === "running")
     return { success: false, error: `Task "${name}" is already running` };
 
+  // Mark as running synchronously before launching async work to prevent races
+  taskStarted(name);
+
   // Fire and forget — don't await, let it run in background
   (async () => {
-    taskStarted(name);
     try {
       const result = await task.run();
       taskCompleted(name, result);

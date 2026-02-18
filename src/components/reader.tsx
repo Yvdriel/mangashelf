@@ -158,7 +158,7 @@ export function Reader({
     <div
       ref={containerRef}
       data-theme="dark"
-      className="reader-container fixed inset-0 z-50 overflow-y-auto bg-surface-900"
+      className="fixed inset-0 z-50 overflow-y-auto bg-surface-900"
       onClick={handleTap}
     >
       {/* Top overlay */}
@@ -256,7 +256,7 @@ export function Reader({
 
       {/* Bottom progress bar */}
       <div
-        className={`reader-progress fixed bottom-0 left-0 right-0 pb-[env(safe-area-inset-bottom)] bg-surface-600 transition-opacity duration-300 ${
+        className={`fixed bottom-0 left-0 right-0 pb-[env(safe-area-inset-bottom)] bg-surface-600 transition-opacity duration-300 ${
           showOverlay ? "opacity-100" : "opacity-0"
         }`}
       >

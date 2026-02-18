@@ -26,6 +26,7 @@
 /* === Dark theme (explicit values needed for nested data-theme="dark" on reader) === */
 [data-theme="dark"] {
   color-scheme: dark;
+  background-color: oklch(0.14 0.006 350);
 
   --color-accent-50: oklch(0.97 0.014 350);
   --color-accent-100: oklch(0.94 0.028 350);
@@ -50,6 +51,7 @@
 /* === Chalk (warm off-white light theme) === */
 [data-theme="chalk"] {
   color-scheme: light;
+  background-color: oklch(0.96 0.008 70);
 
   /* Surface scale inverted: 900=lightest (page bg), 50=darkest (body text) */
   --color-surface-900: oklch(0.96 0.008 70);
@@ -76,6 +78,7 @@
 /* === Sakura (pastel pink light theme) === */
 [data-theme="sakura"] {
   color-scheme: light;
+  background-color: oklch(0.97 0.014 350);
 
   --color-surface-900: oklch(0.97 0.014 350);
   --color-surface-800: oklch(0.99 0.006 350);
@@ -101,6 +104,7 @@
 /* === AMOLED (true black for OLED screens) === */
 [data-theme="amoled"] {
   color-scheme: dark;
+  background-color: oklch(0 0 0);
 
   --color-surface-900: oklch(0 0 0);
   --color-surface-800: oklch(0.07 0.003 350);
@@ -119,17 +123,4 @@
 html:not([data-no-transition]) {
   transition-property: background-color, color, border-color;
   transition-duration: 0.2s;
-}
-
-/* PWA standalone reader: fill every pixel of the screen.
-   On iOS PWA, fixed elements with bottom:0 stop at the safe-area
-   boundary. Pull the reader past it so content reaches the screen edge. */
-@media (display-mode: standalone) {
-  .reader-container {
-    bottom: calc(-1 * env(safe-area-inset-bottom, 0px)) !important;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-  .reader-progress {
-    padding-bottom: 0 !important;
-  }
 }

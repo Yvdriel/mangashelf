@@ -2,7 +2,7 @@
  * Disk space and file size utilities for the status page.
  */
 
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import fs from "fs";
 import path from "path";
 
@@ -70,7 +70,7 @@ function calcDirSize(dir: string): number {
 function getPartitionBytes(dir: string): { total: number; free: number } {
   try {
     // -k = 1K-blocks, -P = POSIX portable output (single header + data line)
-    const out = execSync(`df -kP "${dir}"`, {
+    const out = execFileSync("df", ["-kP", dir], {
       encoding: "utf-8",
       timeout: 5000,
     });

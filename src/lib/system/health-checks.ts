@@ -5,7 +5,7 @@
 import fs from "fs";
 import { db } from "@/db";
 import { manga, managedVolume } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, lt } from "drizzle-orm";
 import type { ServiceCheckResult } from "./service-checks";
 import type { LibraryDiskInfo, StagingInfo, DatabaseInfo } from "./disk";
 import type { DatabaseStats } from "./db-stats";
@@ -166,16 +166,13 @@ export function runHealthChecks(context: {
     const stuck = db
       .select({ id: managedVolume.id })
       .from(managedVolume)
-      .where(eq(managedVolume.status, "downloading"))
-      .all()
-      .filter((v) => {
-        const vol = db
-          .select({ updatedAt: managedVolume.updatedAt })
-          .from(managedVolume)
-          .where(eq(managedVolume.id, v.id))
-          .get();
-        return vol?.updatedAt && vol.updatedAt < cutoff;
-      });
+      .where(
+        and(
+          eq(managedVolume.status, "downloading"),
+          lt(managedVolume.updatedAt, cutoff),
+        ),
+      )
+      .all();
 
     if (stuck.length > 0) {
       checks.push({

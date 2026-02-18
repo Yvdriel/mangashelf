@@ -113,11 +113,9 @@ export function getDatabaseStats(): DatabaseStats {
     .from(importHistory)
     .get();
   const lastImportAt = lastImport?.lastAt
-    ? new Date(
-        typeof lastImport.lastAt === "number"
-          ? lastImport.lastAt * 1000
-          : lastImport.lastAt,
-      ).toISOString()
+    ? lastImport.lastAt instanceof Date
+      ? lastImport.lastAt.toISOString()
+      : new Date((lastImport.lastAt as number) * 1000).toISOString()
     : null;
 
   return {

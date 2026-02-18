@@ -66,7 +66,7 @@ export function GlobalDownloadProgress() {
           className="absolute bottom-0 left-0 h-0.5 bg-accent-400 transition-all duration-700 ease-out"
           style={{ width: `${progress}%` }}
         />
-        <div className="relative flex h-full items-center justify-between px-4 text-xs">
+        <div className="relative flex h-full items-center justify-between max-w-7xl px-[max(1rem,env(safe-area-inset-left))] text-xs">
           <div className="flex items-center gap-2 min-w-0">
             <svg
               className="h-3.5 w-3.5 shrink-0 text-accent-300"

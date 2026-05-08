@@ -23,7 +23,10 @@ export async function GET() {
     .where(eq(userPreferences.userId, session.user.id))
     .get();
 
-  return NextResponse.json({ theme: prefs?.theme ?? "system" });
+  return NextResponse.json({
+    theme: prefs?.theme ?? "system",
+    ocrEnabled: prefs?.ocrEnabled ?? false,
+  });
 }
 
 export async function PUT(request: NextRequest) {
@@ -39,27 +42,67 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { theme } = body;
-  if (!theme || typeof theme !== "string" || !isThemePreference(theme)) {
-    return NextResponse.json({ error: "Invalid theme" }, { status: 400 });
+  const updates: Partial<{ theme: string; ocrEnabled: boolean }> = {};
+  let themeForCookie: string | null = null;
+
+  if ("theme" in body) {
+    const { theme } = body;
+    if (!theme || typeof theme !== "string" || !isThemePreference(theme)) {
+      return NextResponse.json({ error: "Invalid theme" }, { status: 400 });
+    }
+    updates.theme = theme;
+    themeForCookie = theme;
+  }
+
+  if ("ocrEnabled" in body) {
+    if (typeof body.ocrEnabled !== "boolean") {
+      return NextResponse.json(
+        { error: "ocrEnabled must be a boolean" },
+        { status: 400 },
+      );
+    }
+    updates.ocrEnabled = body.ocrEnabled;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json(
+      { error: "No supported fields provided" },
+      { status: 400 },
+    );
   }
 
   db.insert(userPreferences)
-    .values({ userId: session.user.id, theme })
+    .values({
+      userId: session.user.id,
+      theme: updates.theme ?? "system",
+      ocrEnabled: updates.ocrEnabled ?? false,
+    })
     .onConflictDoUpdate({
       target: userPreferences.userId,
-      set: { theme, updatedAt: sql`(unixepoch())` },
+      set: { ...updates, updatedAt: sql`(unixepoch())` },
     })
     .run();
 
-  const response = NextResponse.json({ theme });
-  response.cookies.set(THEME_COOKIE, theme, {
-    path: "/",
-    maxAge: THEME_COOKIE_MAX_AGE,
-    sameSite: "lax",
-    httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
+  const current = db
+    .select()
+    .from(userPreferences)
+    .where(eq(userPreferences.userId, session.user.id))
+    .get();
+
+  const response = NextResponse.json({
+    theme: current?.theme ?? "system",
+    ocrEnabled: current?.ocrEnabled ?? false,
   });
+
+  if (themeForCookie) {
+    response.cookies.set(THEME_COOKIE, themeForCookie, {
+      path: "/",
+      maxAge: THEME_COOKIE_MAX_AGE,
+      sameSite: "lax",
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+    });
+  }
 
   return response;
 }

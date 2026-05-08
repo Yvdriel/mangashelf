@@ -171,6 +171,9 @@ export const userPreferences = sqliteTable("user_preferences", {
     .unique()
     .references(() => user.id, { onDelete: "cascade" }),
   theme: text("theme").notNull().default("system"),
+  ocrEnabled: integer("ocr_enabled", { mode: "boolean" })
+    .notNull()
+    .default(false),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
@@ -217,6 +220,22 @@ export const volume = sqliteTable(
     ),
   ],
 );
+
+export const volumeOcr = sqliteTable("volume_ocr", {
+  volumeId: integer("volume_id")
+    .primaryKey()
+    .references(() => volume.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("queued"),
+  priority: text("priority").notNull().default("normal"),
+  jobId: text("job_id"),
+  errorMessage: text("error_message"),
+  queuedAt: integer("queued_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
 
 export const readingProgress = sqliteTable(
   "reading_progress",

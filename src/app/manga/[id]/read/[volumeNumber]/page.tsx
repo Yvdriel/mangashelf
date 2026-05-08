@@ -1,5 +1,10 @@
 import { db } from "@/db";
-import { manga, volume, readingProgress } from "@/db/schema";
+import {
+  manga,
+  volume,
+  readingProgress,
+  userPreferences,
+} from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { Reader } from "@/components/reader";
@@ -57,6 +62,12 @@ export default async function ReaderPage({
   const nextVolume = allVolumes[volIndex + 1] ?? null;
   const prevVolume = allVolumes[volIndex - 1] ?? null;
 
+  const prefs = db
+    .select({ ocrEnabled: userPreferences.ocrEnabled })
+    .from(userPreferences)
+    .where(eq(userPreferences.userId, session.user.id))
+    .get();
+
   return (
     <Reader
       mangaId={mangaId}
@@ -67,6 +78,7 @@ export default async function ReaderPage({
       startPage={startPage}
       nextVolumeNumber={nextVolume?.volumeNumber ?? null}
       prevVolumeNumber={prevVolume?.volumeNumber ?? null}
+      ocrEnabled={prefs?.ocrEnabled ?? false}
     />
   );
 }

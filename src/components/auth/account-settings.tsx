@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { authClient } from "@/lib/auth-client";
 import { ThemePicker } from "@/components/theme-picker";
+import { ReaderSettings } from "@/components/reader-settings";
 import QRCode from "qrcode";
 
 interface AccountSettingsProps {
@@ -17,6 +18,7 @@ export function AccountSettings({ userName, userEmail }: AccountSettingsProps) {
         <h2 className="text-base font-semibold mb-4">Theme</h2>
         <ThemePicker />
       </section>
+      <ReaderSettings />
       <ProfileSection userName={userName} userEmail={userEmail} />
       <ChangePasswordSection />
       <TwoFactorSection />

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { updateProgress, getPageImageUrl } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { OcrOverlay, type MokuroFile } from "@/components/ocr-overlay";
 
 interface ReaderProps {
   mangaId: number;
@@ -14,6 +15,7 @@ interface ReaderProps {
   startPage: number;
   nextVolumeNumber: number | null;
   prevVolumeNumber: number | null;
+  ocrEnabled: boolean;
 }
 
 const WINDOW_SIZE = 5;
@@ -29,10 +31,13 @@ export function Reader({
   startPage,
   nextVolumeNumber,
   prevVolumeNumber,
+  ocrEnabled,
 }: ReaderProps) {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(startPage);
   const [showOverlay, setShowOverlay] = useState(true);
+  const [ocrData, setOcrData] = useState<MokuroFile | null>(null);
+  const [ocrDebug, setOcrDebug] = useState(false);
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const progressTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -139,6 +144,25 @@ export function Reader({
     );
   }, []);
 
+  // Fetch OCR JSON once per volume when OCR is enabled. The reader is a fresh
+  // route render whenever the user navigates here, so `ocrEnabled` is stable
+  // for the component lifetime.
+  useEffect(() => {
+    if (!ocrEnabled) return;
+    let cancelled = false;
+    fetch(`/api/manga/${mangaId}/volume/${volumeNumber}/ocr`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled) setOcrData(data as MokuroFile | null);
+      })
+      .catch(() => {
+        // leave ocrData as-is; reader silently degrades.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ocrEnabled, mangaId, volumeNumber]);
+
   // Keyboard: Escape to exit
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -192,9 +216,27 @@ export function Reader({
           </svg>
           {mangaTitle}
         </button>
-        <span className="text-xs text-surface-300">
-          Vol {volumeNumber} &middot; {currentPage + 1} / {pageCount}
-        </span>
+        <div className="flex items-center gap-3">
+          {ocrEnabled && ocrData && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setOcrDebug((v) => !v);
+              }}
+              title={ocrDebug ? "Hide OCR text" : "Show OCR text"}
+              className={`text-xs px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                ocrDebug
+                  ? "border-accent-400 bg-accent-400/15 text-accent-200"
+                  : "border-surface-500 text-surface-300 hover:text-surface-100 hover:border-surface-400"
+              }`}
+            >
+              OCR
+            </button>
+          )}
+          <span className="text-xs text-surface-300">
+            Vol {volumeNumber} &middot; {currentPage + 1} / {pageCount}
+          </span>
+        </div>
       </div>
 
       {/* Page container */}
@@ -210,14 +252,25 @@ export function Reader({
               className="relative w-full"
             >
               {inRange ? (
-                <Image
-                  src={getPageImageUrl(mangaId, volumeNumber, pageIdx)}
-                  alt={`Page ${pageIdx + 1}`}
-                  width={800}
-                  height={1200}
-                  unoptimized
-                  className="w-full h-auto"
-                />
+                <div
+                  className="relative w-full"
+                  style={{ containerType: "inline-size" }}
+                >
+                  <Image
+                    src={getPageImageUrl(mangaId, volumeNumber, pageIdx)}
+                    alt={`Page ${pageIdx + 1}`}
+                    width={800}
+                    height={1200}
+                    unoptimized
+                    className="w-full h-auto block"
+                  />
+                  {ocrEnabled && ocrData?.pages?.[pageIdx] && (
+                    <OcrOverlay
+                      page={ocrData.pages[pageIdx]}
+                      debugVisible={ocrDebug}
+                    />
+                  )}
+                </div>
               ) : (
                 <div className="aspect-2/3 w-full bg-surface-800" />
               )}

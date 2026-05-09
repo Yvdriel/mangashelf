@@ -71,10 +71,21 @@ export function OcrOverlay({ page, debugVisible = false }: OcrOverlayProps) {
         const top = (y1 / img_height) * 100;
         const width = ((x2 - x1) / img_width) * 100;
         const height = ((y2 - y1) / img_height) * 100;
-        // Scale font size with rendered image width.
-        // mokuro font_size is in source pixels; we approximate with a ratio
-        // expressed via cqw (container query width) so it scales naturally.
-        const fontSizeCqw = (b.font_size / img_width) * 100;
+        // Derive font-size and line-height from bbox + line content so column
+        // (vertical) or row (horizontal) spacing fills the bbox exactly. Trust
+        // mokuro's font_size when it fits; clamp it down only when furigana or
+        // padding inflated the estimate beyond the bbox.
+        const bboxW = x2 - x1;
+        const bboxH = y2 - y1;
+        const N = b.lines.length || 1;
+        const M = Math.max(1, ...b.lines.map((l) => l.length));
+        const lineSpan = b.vertical ? bboxW / N : bboxH / N;
+        const charSpan = b.vertical ? bboxH / M : bboxW / M;
+        const fitSize = Math.min(lineSpan, charSpan);
+        const fontSizePx =
+          b.font_size > 0 ? Math.min(b.font_size, fitSize) : fitSize;
+        const lineHeight = fontSizePx > 0 ? lineSpan / fontSizePx : 1;
+        const fontSizeCqw = (fontSizePx / img_width) * 100;
         return (
           <div
             key={idx}
@@ -85,7 +96,7 @@ export function OcrOverlay({ page, debugVisible = false }: OcrOverlayProps) {
               width: `${width}%`,
               height: `${height}%`,
               fontSize: `${fontSizeCqw}cqw`,
-              lineHeight: 1.1,
+              lineHeight,
               writingMode: b.vertical ? "vertical-rl" : "horizontal-tb",
               color: debugVisible ? "rgba(255, 60, 60, 0.95)" : "transparent",
               background: debugVisible

@@ -1,8 +1,12 @@
-# Pin torch + torchvision for reproducible builds. mokuro 0.2.2 is known
-# good against this pair on the PyTorch CPU index.
-torch==2.4.1
-torchvision==0.19.1
+# Pin torch + torchvision for reproducible builds. torch 2.6 is required so
+# that `torch.library.custom_op`'s schema inference resolves the stringified
+# `torch.Tensor` annotations introduced by transformers >= 4.50 (used
+# transitively by mokuro/manga-ocr); torch 2.4 raises a misleading
+# "unsupported type torch.Tensor" at import time.
+torch==2.6.0
+torchvision==0.21.0
 mokuro==0.2.2
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
+

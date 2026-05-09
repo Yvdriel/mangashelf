@@ -1,29 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
+import type { MokuroPage } from "@/lib/mokuro";
 
-export interface MokuroBlock {
-  box: [number, number, number, number]; // x1,y1,x2,y2 in source-image pixels
-  vertical: boolean;
-  font_size: number;
-  lines: string[];
-  // lines_coords ignored: per-line bbox precision is not needed for Yomitan
-  // scanning, and skipping it keeps the DOM dramatically lighter.
-}
-
-export interface MokuroPage {
-  img_width: number;
-  img_height: number;
-  img_path?: string;
-  blocks: MokuroBlock[];
-}
-
-export interface MokuroFile {
-  version?: string;
-  title?: string;
-  volume?: string;
-  pages: MokuroPage[];
-}
+export type { MokuroBlock, MokuroPage, MokuroFile } from "@/lib/mokuro";
 
 interface OcrOverlayProps {
   page: MokuroPage | null | undefined;

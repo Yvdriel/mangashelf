@@ -63,7 +63,10 @@ export default async function ReaderPage({
   const prevVolume = allVolumes[volIndex - 1] ?? null;
 
   const prefs = db
-    .select({ ocrEnabled: userPreferences.ocrEnabled })
+    .select({
+      ocrEnabled: userPreferences.ocrEnabled,
+      textViewButton: userPreferences.textViewButton,
+    })
     .from(userPreferences)
     .where(eq(userPreferences.userId, session.user.id))
     .get();
@@ -79,6 +82,7 @@ export default async function ReaderPage({
       nextVolumeNumber={nextVolume?.volumeNumber ?? null}
       prevVolumeNumber={prevVolume?.volumeNumber ?? null}
       ocrEnabled={prefs?.ocrEnabled ?? false}
+      textViewEnabled={prefs?.textViewButton ?? false}
     />
   );
 }

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { updateProgress, getPageImageUrl } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { OcrOverlay, type MokuroFile } from "@/components/ocr-overlay";
 
 interface ReaderProps {
@@ -16,6 +17,7 @@ interface ReaderProps {
   nextVolumeNumber: number | null;
   prevVolumeNumber: number | null;
   ocrEnabled: boolean;
+  textViewEnabled: boolean;
 }
 
 const WINDOW_SIZE = 5;
@@ -32,6 +34,7 @@ export function Reader({
   nextVolumeNumber,
   prevVolumeNumber,
   ocrEnabled,
+  textViewEnabled,
 }: ReaderProps) {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(startPage);
@@ -232,6 +235,16 @@ export function Reader({
             >
               OCR
             </button>
+          )}
+          {textViewEnabled && (
+            <Link
+              href={`/manga/${mangaId}/volume/${volumeNumber}/text`}
+              onClick={(e) => e.stopPropagation()}
+              title="Open text-only view (Yomitan-friendly)"
+              className="text-xs px-2 py-0.5 rounded border border-surface-500 text-surface-300 hover:text-surface-100 hover:border-surface-400 transition-colors"
+            >
+              Text
+            </Link>
           )}
           <span className="text-xs text-surface-300">
             Vol {volumeNumber} &middot; {currentPage + 1} / {pageCount}

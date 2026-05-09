@@ -5,6 +5,7 @@ import { authClient } from "@/lib/auth-client";
 import { ThemePicker } from "@/components/theme-picker";
 import { ReaderSettings } from "@/components/reader-settings";
 import { TextToolsSettings } from "@/components/text-tools-settings";
+import { AnkiSettings } from "@/components/anki-settings";
 import QRCode from "qrcode";
 
 interface AccountSettingsProps {
@@ -21,6 +22,7 @@ export function AccountSettings({ userName, userEmail }: AccountSettingsProps) {
       </section>
       <ReaderSettings />
       <TextToolsSettings />
+      <AnkiSettings />
       <ProfileSection userName={userName} userEmail={userEmail} />
       <ChangePasswordSection />
       <TwoFactorSection />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 interface Summary {
   total: number;
@@ -21,35 +21,35 @@ export function OcrMangaButton({
 }: OcrMangaButtonProps) {
   const [summary, setSummary] = useState<Summary>(initialSummary);
   const [busy, setBusy] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const inFlight = summary.queued > 0 || summary.running > 0;
 
+  // Single-flight polling: recursive setTimeout with a cancellation flag so a
+  // slow response can never let a second request pile up behind it.
   useEffect(() => {
-    if (!inFlight) {
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
-      return;
-    }
-    if (pollRef.current) return;
-    pollRef.current = setInterval(async () => {
+    if (!inFlight) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const tick = async () => {
+      if (cancelled) return;
       try {
         const res = await fetch(`/api/manga/${mangaId}/ocr`);
-        if (res.ok) {
+        if (!cancelled && res.ok) {
           const data = (await res.json()) as Summary;
           setSummary(data);
         }
       } catch {
-        // ignore transient errors
+        // transient errors: just try again next tick
       }
-    }, 5000);
+      if (!cancelled) timer = setTimeout(tick, 5000);
+    };
+
+    timer = setTimeout(tick, 5000);
+
     return () => {
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
+      cancelled = true;
+      if (timer) clearTimeout(timer);
     };
   }, [inFlight, mangaId]);
 

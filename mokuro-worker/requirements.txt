@@ -1,3 +1,7 @@
+# Pin torch + torchvision for reproducible builds. mokuro 0.2.2 is known
+# good against this pair on the PyTorch CPU index.
+torch==2.4.1
+torchvision==0.19.1
 mokuro==0.2.2
 fastapi==0.115.6
 uvicorn[standard]==0.34.0

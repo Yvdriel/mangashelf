@@ -35,12 +35,19 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: Record<string, unknown>;
+  let parsed: unknown;
   try {
-    body = await request.json();
+    parsed = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return NextResponse.json(
+      { error: "Body must be a JSON object" },
+      { status: 400 },
+    );
+  }
+  const body = parsed as Record<string, unknown>;
 
   const updates: Partial<{ theme: string; ocrEnabled: boolean }> = {};
   let themeForCookie: string | null = null;

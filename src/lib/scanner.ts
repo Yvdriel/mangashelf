@@ -235,7 +235,7 @@ function _syncLibraryInner(): {
             .returning()
             .get();
           try {
-            enqueueVolumeOcr?.(inserted.id);
+            enqueueVolumeOcr(inserted.id);
           } catch (e) {
             console.warn(
               `[MangaShelf] OCR enqueue failed for new volume ${inserted.id}:`,

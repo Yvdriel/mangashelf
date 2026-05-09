@@ -147,6 +147,9 @@ services:
       # Set MOKURO_DEVICE=cuda and configure the NVIDIA runtime
       # (deploy.resources.reservations.devices) to enable GPU acceleration.
       - MOKURO_DEVICE=${MOKURO_DEVICE:-cpu}
+      # Restrict OCR jobs to volumes under this root. Defence in depth in case
+      # the worker is ever exposed beyond the internal arrstack network.
+      - MOKURO_ALLOWED_ROOT=/manga
     volumes:
       # Read-write so mokuro can write `<volume>.mokuro` JSON sidecar files
       # alongside each volume folder.

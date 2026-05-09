@@ -25,6 +25,7 @@ log = logging.getLogger("mokuro-worker")
 
 DEVICE = os.environ.get("MOKURO_DEVICE", "cpu").lower()
 JOB_TTL_SECONDS = int(os.environ.get("MOKURO_JOB_TTL", "3600"))
+ALLOWED_ROOT = Path(os.environ.get("MOKURO_ALLOWED_ROOT", "/manga")).resolve()
 
 
 @dataclass
@@ -62,6 +63,18 @@ async def enqueue(body: EnqueueBody):
     vol_path = Path(body.volumePath)
     if not vol_path.is_dir():
         raise HTTPException(400, f"volumePath is not a directory: {body.volumePath}")
+
+    # Confine to MOKURO_ALLOWED_ROOT (defaults to /manga). Defence in depth
+    # against misconfigured deployments that expose the worker beyond a
+    # trusted internal network.
+    try:
+        resolved = vol_path.resolve()
+        resolved.relative_to(ALLOWED_ROOT)
+    except ValueError:
+        raise HTTPException(
+            400, f"volumePath is outside allowed root {ALLOWED_ROOT}"
+        )
+    vol_path = resolved
 
     if body.jobKey and body.jobKey in job_keys:
         existing_id = job_keys[body.jobKey]

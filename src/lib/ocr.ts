@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { db } from "@/db";
 import { manga, volume, volumeOcr } from "@/db/schema";
-import { eq, and, asc, inArray, sql } from "drizzle-orm";
+import { eq, and, asc, desc, inArray, sql } from "drizzle-orm";
 import {
   registerTask,
   taskStarted,
@@ -34,64 +34,59 @@ export function volumeFolderPath(
 }
 
 /**
- * Upsert an entry in volume_ocr. Idempotent:
+ * Upsert an entry in volume_ocr atomically. Idempotent and concurrency-safe:
  * - Already `ready` rows are left alone.
  * - `running` rows are left alone (let the dispatcher reconcile them).
  * - `queued`/`failed` rows are reset to `queued` at the requested priority,
  *   but only if the new priority is at least as high as the existing one
  *   (normal > low, so a low request never demotes a normal one).
+ *
+ * Implemented as a single `INSERT … ON CONFLICT DO UPDATE` so concurrent
+ * callers (scanner + manual OCR-all click on the same volume) can't race on
+ * the `volume_id` PK constraint.
  */
 export function enqueueVolumeOcr(
   volumeId: number,
   priority: OcrPriority = "normal",
 ): void {
-  const existing = db
-    .select()
-    .from(volumeOcr)
-    .where(eq(volumeOcr.volumeId, volumeId))
-    .get();
-
-  if (!existing) {
-    db.insert(volumeOcr)
-      .values({ volumeId, status: "queued", priority })
-      .run();
-    return;
-  }
-
-  if (existing.status === "ready" || existing.status === "running") return;
-
-  // For queued/failed: re-arm at the higher of the two priorities.
-  const winningPriority: OcrPriority =
-    existing.priority === "normal" ? "normal" : priority;
-
-  db.update(volumeOcr)
-    .set({
-      status: "queued",
-      priority: winningPriority,
-      jobId: null,
-      errorMessage: null,
-      queuedAt: new Date(),
-      updatedAt: new Date(),
+  db.insert(volumeOcr)
+    .values({ volumeId, status: "queued", priority })
+    .onConflictDoUpdate({
+      target: volumeOcr.volumeId,
+      set: {
+        status: sql`CASE WHEN ${volumeOcr.status} IN ('ready','running') THEN ${volumeOcr.status} ELSE 'queued' END`,
+        priority: sql`CASE WHEN ${volumeOcr.status} IN ('ready','running') THEN ${volumeOcr.priority} WHEN ${volumeOcr.priority} = 'normal' THEN 'normal' ELSE ${priority} END`,
+        jobId: sql`CASE WHEN ${volumeOcr.status} IN ('ready','running') THEN ${volumeOcr.jobId} ELSE NULL END`,
+        errorMessage: sql`CASE WHEN ${volumeOcr.status} IN ('ready','running') THEN ${volumeOcr.errorMessage} ELSE NULL END`,
+        queuedAt: sql`CASE WHEN ${volumeOcr.status} IN ('ready','running') THEN ${volumeOcr.queuedAt} ELSE (unixepoch()) END`,
+        updatedAt: sql`(unixepoch())`,
+      },
     })
-    .where(eq(volumeOcr.volumeId, volumeId))
     .run();
 }
 
 /**
  * Bulk-enqueue every volume of a manga at the given priority. Returns counts.
+ *
+ * Reads existing rows once, decides eligibility in JS, then does one bulk
+ * upsert for the eligible volumes — no per-volume SELECT.
  */
 export function enqueueOcrForManga(
   mangaId: number,
   priority: OcrPriority = "low",
 ): { queued: number; alreadyReady: number; running: number } {
   const volumes = db
-    .select()
+    .select({ id: volume.id })
     .from(volume)
     .where(eq(volume.mangaId, mangaId))
     .all();
 
+  if (volumes.length === 0) {
+    return { queued: 0, alreadyReady: 0, running: 0 };
+  }
+
   const existing = db
-    .select()
+    .select({ volumeId: volumeOcr.volumeId, status: volumeOcr.status })
     .from(volumeOcr)
     .where(
       inArray(
@@ -100,27 +95,49 @@ export function enqueueOcrForManga(
       ),
     )
     .all();
-  const byVolumeId = new Map(existing.map((r) => [r.volumeId, r]));
+  const statusByVolumeId = new Map(existing.map((r) => [r.volumeId, r.status]));
 
-  let queued = 0;
+  const eligible: number[] = [];
   let alreadyReady = 0;
   let running = 0;
 
   for (const v of volumes) {
-    const ex = byVolumeId.get(v.id);
-    if (ex?.status === "ready") {
+    const status = statusByVolumeId.get(v.id);
+    if (status === "ready") {
       alreadyReady++;
       continue;
     }
-    if (ex?.status === "running") {
+    if (status === "running") {
       running++;
       continue;
     }
-    enqueueVolumeOcr(v.id, priority);
-    queued++;
+    eligible.push(v.id);
   }
 
-  return { queued, alreadyReady, running };
+  if (eligible.length > 0) {
+    db.insert(volumeOcr)
+      .values(
+        eligible.map((volumeId) => ({
+          volumeId,
+          status: "queued" as const,
+          priority,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: volumeOcr.volumeId,
+        set: {
+          status: sql`CASE WHEN ${volumeOcr.status} IN ('ready','running') THEN ${volumeOcr.status} ELSE 'queued' END`,
+          priority: sql`CASE WHEN ${volumeOcr.status} IN ('ready','running') THEN ${volumeOcr.priority} WHEN ${volumeOcr.priority} = 'normal' THEN 'normal' ELSE ${priority} END`,
+          jobId: sql`CASE WHEN ${volumeOcr.status} IN ('ready','running') THEN ${volumeOcr.jobId} ELSE NULL END`,
+          errorMessage: sql`CASE WHEN ${volumeOcr.status} IN ('ready','running') THEN ${volumeOcr.errorMessage} ELSE NULL END`,
+          queuedAt: sql`CASE WHEN ${volumeOcr.status} IN ('ready','running') THEN ${volumeOcr.queuedAt} ELSE (unixepoch()) END`,
+          updatedAt: sql`(unixepoch())`,
+        },
+      })
+      .run();
+  }
+
+  return { queued: eligible.length, alreadyReady, running };
 }
 
 interface DispatchableRow {
@@ -133,28 +150,25 @@ interface DispatchableRow {
 }
 
 function nextDispatchable(): DispatchableRow | null {
-  // Inner join volumeOcr -> volume -> manga for paths.
-  const rows = db
+  // First: any row already in flight on the worker. Always reconcile before
+  // dispatching new work.
+  const running = db
     .select({
       volumeId: volumeOcr.volumeId,
       status: volumeOcr.status,
       priority: volumeOcr.priority,
       jobId: volumeOcr.jobId,
-      queuedAt: volumeOcr.queuedAt,
       mangaFolderName: manga.folderName,
       volumeFolderName: volume.folderName,
     })
     .from(volumeOcr)
     .innerJoin(volume, eq(volumeOcr.volumeId, volume.id))
     .innerJoin(manga, eq(volume.mangaId, manga.id))
-    .where(inArray(volumeOcr.status, ["queued", "running"]))
+    .where(eq(volumeOcr.status, "running"))
     .orderBy(asc(volumeOcr.queuedAt))
-    .all();
+    .limit(1)
+    .get();
 
-  if (rows.length === 0) return null;
-
-  // Reconcile running rows first (always).
-  const running = rows.find((r) => r.status === "running");
   if (running) {
     return {
       volumeId: running.volumeId,
@@ -166,20 +180,34 @@ function nextDispatchable(): DispatchableRow | null {
     };
   }
 
-  const normal = rows.find(
-    (r) => r.status === "queued" && r.priority === "normal",
-  );
-  const candidate =
-    normal ?? rows.find((r) => r.status === "queued" && r.priority === "low");
+  // Otherwise pick the next queued row. `'normal' > 'low'` lexicographically,
+  // so `priority DESC` puts normal-priority jobs ahead of the low-priority
+  // backfill drip; `queuedAt ASC` is the FIFO tiebreaker within a priority.
+  const queued = db
+    .select({
+      volumeId: volumeOcr.volumeId,
+      status: volumeOcr.status,
+      priority: volumeOcr.priority,
+      jobId: volumeOcr.jobId,
+      mangaFolderName: manga.folderName,
+      volumeFolderName: volume.folderName,
+    })
+    .from(volumeOcr)
+    .innerJoin(volume, eq(volumeOcr.volumeId, volume.id))
+    .innerJoin(manga, eq(volume.mangaId, manga.id))
+    .where(eq(volumeOcr.status, "queued"))
+    .orderBy(desc(volumeOcr.priority), asc(volumeOcr.queuedAt))
+    .limit(1)
+    .get();
 
-  if (!candidate) return null;
+  if (!queued) return null;
   return {
-    volumeId: candidate.volumeId,
+    volumeId: queued.volumeId,
     status: "queued",
-    priority: candidate.priority as OcrPriority,
-    jobId: candidate.jobId,
-    mangaFolderName: candidate.mangaFolderName,
-    volumeFolderName: candidate.volumeFolderName,
+    priority: queued.priority as OcrPriority,
+    jobId: queued.jobId,
+    mangaFolderName: queued.mangaFolderName,
+    volumeFolderName: queued.volumeFolderName,
   };
 }
 

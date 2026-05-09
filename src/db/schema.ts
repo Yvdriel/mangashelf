@@ -221,21 +221,33 @@ export const volume = sqliteTable(
   ],
 );
 
-export const volumeOcr = sqliteTable("volume_ocr", {
-  volumeId: integer("volume_id")
-    .primaryKey()
-    .references(() => volume.id, { onDelete: "cascade" }),
-  status: text("status").notNull().default("queued"),
-  priority: text("priority").notNull().default("normal"),
-  jobId: text("job_id"),
-  errorMessage: text("error_message"),
-  queuedAt: integer("queued_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
-});
+export const volumeOcr = sqliteTable(
+  "volume_ocr",
+  {
+    volumeId: integer("volume_id")
+      .primaryKey()
+      .references(() => volume.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("queued"),
+    priority: text("priority").notNull().default("normal"),
+    jobId: text("job_id"),
+    errorMessage: text("error_message"),
+    queuedAt: integer("queued_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [
+    // Backs `nextDispatchable()` — keeps queue selection O(log n) regardless
+    // of library size. Order matches the WHERE/ORDER BY clauses there.
+    index("volume_ocr_status_priority_queued_at_idx").on(
+      table.status,
+      table.priority,
+      table.queuedAt,
+    ),
+  ],
+);
 
 export const readingProgress = sqliteTable(
   "reading_progress",

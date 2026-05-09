@@ -11,6 +11,13 @@ export async function register() {
       console.error("[MangaShelf] Library scan failed:", e);
     }
 
+    try {
+      const { ensureDictIndex } = await import("./lib/dict/index-builder");
+      await ensureDictIndex();
+    } catch (e) {
+      console.error("[MangaShelf] Dictionary index build failed:", e);
+    }
+
     // Start background tasks (download progress + auto-import)
     const { startBackgroundTasks } = await import("./lib/importer");
     startBackgroundTasks();

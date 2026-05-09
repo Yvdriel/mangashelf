@@ -22,6 +22,7 @@ export interface SendCardArgs {
   pageIdx: number;
   blockText: string;
   blockBox: [number, number, number, number];
+  definition?: string;
 }
 
 export interface TestResult {
@@ -137,6 +138,9 @@ export function useAnki() {
       if (anki.fields.source) {
         fields[anki.fields.source] = sourceText;
       }
+      if (anki.fields.definition && args.definition) {
+        fields[anki.fields.definition] = args.definition;
+      }
 
       const tags = expandTags(anki.tags, {
         series: args.mangaTitle,
@@ -179,4 +183,19 @@ function toSendError(err: unknown): SendError {
     return new SendError(err.kind, err.message);
   }
   return new SendError("unknown", err instanceof Error ? err.message : String(err));
+}
+
+export function formatSendError(err: SendError): string {
+  switch (err.kind) {
+    case "config":
+      return err.message;
+    case "cors":
+      return "Anki blocked this origin. Add it to webCorsOriginList in AnkiConnect's config.";
+    case "offline":
+      return "Anki isn't reachable. Confirm Anki is running with AnkiConnect installed.";
+    case "rejected":
+      return `Anki rejected the card: ${err.message}`;
+    default:
+      return `Anki: ${err.message}`;
+  }
 }

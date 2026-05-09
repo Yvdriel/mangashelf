@@ -7,12 +7,14 @@ export interface AnkiSettings {
     sentence: string;
     image: string;
     source: string;
+    definition: string;
   };
   tags: string[];
   imageFormat: "png" | "jpeg";
   jpegQuality: number;
   cropPadding: number;
   mode: "create" | "update-last";
+  showPreviewDialog: boolean;
 }
 
 export const ANKI_DEFAULTS: AnkiSettings = {
@@ -24,12 +26,14 @@ export const ANKI_DEFAULTS: AnkiSettings = {
     sentence: "Sentence",
     image: "Image",
     source: "Source",
+    definition: "Definition",
   },
   tags: ["mangashelf"],
   imageFormat: "jpeg",
   jpegQuality: 85,
   cropPadding: 16,
   mode: "create",
+  showPreviewDialog: true,
 };
 
 export function parseAnkiSettings(raw: string | null): AnkiSettings {
@@ -75,6 +79,10 @@ export function mergeAnkiSettings(input: unknown): AnkiSettings {
         typeof fieldsIn.source === "string"
           ? fieldsIn.source
           : ANKI_DEFAULTS.fields.source,
+      definition:
+        typeof fieldsIn.definition === "string"
+          ? fieldsIn.definition
+          : ANKI_DEFAULTS.fields.definition,
     },
     tags: tagsIn,
     imageFormat:
@@ -95,6 +103,10 @@ export function mergeAnkiSettings(input: unknown): AnkiSettings {
       o.mode === "create" || o.mode === "update-last"
         ? o.mode
         : ANKI_DEFAULTS.mode,
+    showPreviewDialog:
+      typeof o.showPreviewDialog === "boolean"
+        ? o.showPreviewDialog
+        : ANKI_DEFAULTS.showPreviewDialog,
   };
 }
 

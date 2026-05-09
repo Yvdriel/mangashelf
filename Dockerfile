@@ -9,6 +9,24 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
+# Fetch and extract bundled JMdict (English, common-only) from upstream releases.
+# Upstream tags include a build timestamp (e.g. `3.6.2+20260504132921`); the
+# asset filenames embed the same string. Pin both via JMDICT_TAG. The `+` is
+# URL-encoded to %2B so curl forwards it verbatim.
+FROM base AS dict
+ARG JMDICT_TAG=3.6.2+20260504132921
+RUN apk add --no-cache curl tar
+WORKDIR /tmp/jmdict
+RUN ENC_TAG="$(printf '%s' "${JMDICT_TAG}" | sed 's/+/%2B/g')" \
+ && curl -L --fail \
+      -o jmdict-eng-common.json.tgz \
+      "https://github.com/scriptin/jmdict-simplified/releases/download/${ENC_TAG}/jmdict-eng-common-${ENC_TAG}.json.tgz" \
+ && tar -xzf jmdict-eng-common.json.tgz \
+ && mkdir -p /opt/dict \
+ && mv jmdict-eng-common-*.json /opt/dict/jmdict-eng-common.json \
+ && echo "${JMDICT_TAG}" > /opt/dict/VERSION \
+ && rm -rf /tmp/jmdict
+
 # Build the application
 FROM base AS builder
 WORKDIR /app
@@ -41,6 +59,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/drizzle ./drizzle
+COPY --from=dict --chown=nextjs:nodejs /opt/dict /opt/dict
+
+ENV DICT_DIR=/opt/dict
 
 USER nextjs
 

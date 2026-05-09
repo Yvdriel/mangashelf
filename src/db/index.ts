@@ -6,7 +6,10 @@ import fs from "fs";
 
 const DB_PATH = process.env.DATABASE_URL || "./data/mangashelf.db";
 
+type SqliteClient = ReturnType<typeof Database>;
+
 let _db: BetterSQLite3Database<typeof schema> | null = null;
+let _sqlite: SqliteClient | null = null;
 
 function getDb(): BetterSQLite3Database<typeof schema> {
   if (!_db) {
@@ -20,6 +23,7 @@ function getDb(): BetterSQLite3Database<typeof schema> {
     sqlite.pragma("busy_timeout = 5000");
     sqlite.pragma("foreign_keys = ON");
 
+    _sqlite = sqlite;
     _db = drizzle(sqlite, { schema });
   }
   return _db;
@@ -35,3 +39,9 @@ export const db = new Proxy({} as BetterSQLite3Database<typeof schema>, {
     return value;
   },
 });
+
+/** Underlying better-sqlite3 connection for raw SQL (FTS5, virtual tables). */
+export function getSqliteClient(): SqliteClient {
+  if (!_sqlite) getDb();
+  return _sqlite!;
+}

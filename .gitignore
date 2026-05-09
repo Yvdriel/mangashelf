@@ -47,3 +47,6 @@ next-env.d.ts
 # media
 /media
 /downloads
+
+# locally-fetched dictionary files (bundled in Docker, dev-only here)
+/var/

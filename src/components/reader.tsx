@@ -11,7 +11,11 @@ import {
   type MokuroBlock,
   type MokuroFile,
 } from "@/components/ocr-overlay";
-import { useAnki, SendError } from "@/hooks/use-anki";
+import { useAnki, SendError, formatSendError } from "@/hooks/use-anki";
+import {
+  AnkiCardDialog,
+  type AnkiCardDialogTarget,
+} from "@/components/anki-card-dialog";
 
 interface ReaderProps {
   mangaId: number;
@@ -43,11 +47,14 @@ export function Reader({
   textViewEnabled,
 }: ReaderProps) {
   const router = useRouter();
-  const { enabled: ankiEnabled, sendCard } = useAnki();
+  const { enabled: ankiEnabled, sendCard, settings: ankiSettings } = useAnki();
   const [currentPage, setCurrentPage] = useState(startPage);
   const [showOverlay, setShowOverlay] = useState(true);
   const [ocrData, setOcrData] = useState<MokuroFile | null>(null);
   const [ocrDebug, setOcrDebug] = useState(false);
+  const [ankiTarget, setAnkiTarget] = useState<AnkiCardDialogTarget | null>(
+    null,
+  );
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const progressTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -156,6 +163,10 @@ export function Reader({
 
   const handleBlockSelect = useCallback(
     async (block: MokuroBlock, _idx: number, pageIdx: number) => {
+      if (ankiSettings.showPreviewDialog) {
+        setAnkiTarget({ block, pageIdx });
+        return;
+      }
       const blockText = block.lines.join("");
       const id = toast.loading("Sending to Anki…");
       try {
@@ -179,7 +190,13 @@ export function Reader({
         toast.error(message, { id, duration: 8000 });
       }
     },
-    [mangaId, volumeNumber, mangaTitle, sendCard],
+    [
+      ankiSettings.showPreviewDialog,
+      mangaId,
+      volumeNumber,
+      mangaTitle,
+      sendCard,
+    ],
   );
 
   // Fetch OCR JSON once per volume when OCR is enabled. The reader is a fresh
@@ -376,21 +393,15 @@ export function Reader({
           />
         </div>
       </div>
+
+      <AnkiCardDialog
+        open={ankiTarget !== null}
+        target={ankiTarget}
+        mangaId={mangaId}
+        volumeNumber={volumeNumber}
+        mangaTitle={mangaTitle}
+        onClose={() => setAnkiTarget(null)}
+      />
     </div>
   );
-}
-
-function formatSendError(err: SendError): string {
-  switch (err.kind) {
-    case "config":
-      return err.message;
-    case "cors":
-      return "Anki blocked this origin. Add it to webCorsOriginList in AnkiConnect's config.";
-    case "offline":
-      return "Anki isn't reachable. Confirm Anki is running with AnkiConnect installed.";
-    case "rejected":
-      return `Anki rejected the card: ${err.message}`;
-    default:
-      return `Anki: ${err.message}`;
-  }
 }

@@ -189,6 +189,17 @@ function AnkiSettingsForm({
             className={inputCls}
           />
         </Field>
+        <Field
+          label="Definition field (optional)"
+          help="Receives JMdict glosses when the preview dialog is enabled."
+        >
+          <input
+            type="text"
+            value={draft.fields.definition}
+            onChange={(e) => updateField("definition", e.target.value)}
+            className={inputCls}
+          />
+        </Field>
       </div>
 
       <Field
@@ -278,6 +289,22 @@ function AnkiSettingsForm({
             <option value="update-last">Update last card in deck</option>
           </select>
         </Field>
+      </div>
+
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-surface-700 bg-surface-900/30 px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-sm text-surface-100">Show preview dialog</p>
+          <p className="mt-1 text-xs text-surface-400">
+            On double-click, open a dialog to refine the sentence and look up
+            the selection in JMdict before creating the card. Off = instant
+            create with the full bubble text.
+          </p>
+        </div>
+        <Switch
+          checked={draft.showPreviewDialog}
+          disabled={saving}
+          onChange={(next) => update("showPreviewDialog", next)}
+        />
       </div>
 
       {saveError && <p className="text-xs text-red-400">{saveError}</p>}

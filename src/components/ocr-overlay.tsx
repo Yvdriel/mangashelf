@@ -89,6 +89,8 @@ export function OcrOverlay({ page, debugVisible = false }: OcrOverlayProps) {
         return (
           <div
             key={idx}
+            lang="ja"
+            data-ocr-block
             style={{
               position: "absolute",
               left: `${left}%`,
@@ -98,6 +100,7 @@ export function OcrOverlay({ page, debugVisible = false }: OcrOverlayProps) {
               fontSize: `${fontSizeCqw}cqw`,
               lineHeight,
               writingMode: b.vertical ? "vertical-rl" : "horizontal-tb",
+              textOrientation: b.vertical ? "mixed" : undefined,
               color: debugVisible ? "rgba(255, 60, 60, 0.95)" : "transparent",
               background: debugVisible
                 ? "rgba(255, 255, 255, 0.6)"
@@ -114,7 +117,7 @@ export function OcrOverlay({ page, debugVisible = false }: OcrOverlayProps) {
             }}
           >
             {b.lines.map((line, i) => (
-              <span key={i} style={{ display: "block" }}>
+              <span key={i} lang="ja" style={{ display: "block" }}>
                 {line}
               </span>
             ))}

@@ -5,7 +5,13 @@ import { updateProgress, getPageImageUrl } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { OcrOverlay, type MokuroFile } from "@/components/ocr-overlay";
+import { toast } from "sonner";
+import {
+  OcrOverlay,
+  type MokuroBlock,
+  type MokuroFile,
+} from "@/components/ocr-overlay";
+import { useAnki, SendError } from "@/hooks/use-anki";
 
 interface ReaderProps {
   mangaId: number;
@@ -37,6 +43,7 @@ export function Reader({
   textViewEnabled,
 }: ReaderProps) {
   const router = useRouter();
+  const { enabled: ankiEnabled, sendCard } = useAnki();
   const [currentPage, setCurrentPage] = useState(startPage);
   const [showOverlay, setShowOverlay] = useState(true);
   const [ocrData, setOcrData] = useState<MokuroFile | null>(null);
@@ -146,6 +153,34 @@ export function Reader({
       OVERLAY_HIDE_DELAY,
     );
   }, []);
+
+  const handleBlockSelect = useCallback(
+    async (block: MokuroBlock, _idx: number, pageIdx: number) => {
+      const blockText = block.lines.join("");
+      const id = toast.loading("Sending to Anki…");
+      try {
+        const result = await sendCard({
+          mangaId,
+          volumeNumber,
+          mangaTitle,
+          pageIdx,
+          blockText,
+          blockBox: block.box,
+        });
+        toast.success(
+          result.mode === "create"
+            ? `Card added to ${result.deck}`
+            : `Updated last card in ${result.deck}`,
+          { id },
+        );
+      } catch (err) {
+        const message =
+          err instanceof SendError ? formatSendError(err) : String(err);
+        toast.error(message, { id, duration: 8000 });
+      }
+    },
+    [mangaId, volumeNumber, mangaTitle, sendCard],
+  );
 
   // Fetch OCR JSON once per volume when OCR is enabled. The reader is a fresh
   // route render whenever the user navigates here, so `ocrEnabled` is stable
@@ -281,6 +316,11 @@ export function Reader({
                     <OcrOverlay
                       page={ocrData.pages[pageIdx]}
                       debugVisible={ocrDebug}
+                      onBlockSelect={
+                        ankiEnabled
+                          ? (b, idx) => handleBlockSelect(b, idx, pageIdx)
+                          : undefined
+                      }
                     />
                   )}
                 </div>
@@ -338,4 +378,19 @@ export function Reader({
       </div>
     </div>
   );
+}
+
+function formatSendError(err: SendError): string {
+  switch (err.kind) {
+    case "config":
+      return err.message;
+    case "cors":
+      return "Anki blocked this origin. Add it to webCorsOriginList in AnkiConnect's config.";
+    case "offline":
+      return "Anki isn't reachable. Confirm Anki is running with AnkiConnect installed.";
+    case "rejected":
+      return `Anki rejected the card: ${err.message}`;
+    default:
+      return `Anki: ${err.message}`;
+  }
 }

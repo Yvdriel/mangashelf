@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import type { MokuroPage } from "@/lib/mokuro";
+import { useMemo, useRef } from "react";
+import type { MokuroBlock, MokuroPage } from "@/lib/mokuro";
 
 export type { MokuroBlock, MokuroPage, MokuroFile } from "@/lib/mokuro";
 
@@ -9,7 +9,16 @@ interface OcrOverlayProps {
   page: MokuroPage | null | undefined;
   /** When true, renders the OCR text visibly (debugging). Defaults to false. */
   debugVisible?: boolean;
+  /**
+   * Called when the user double-clicks, right-clicks, or long-presses an OCR
+   * block. The handler is responsible for whatever follows (e.g. send to
+   * Anki). When omitted, gesture wiring is skipped so we don't fight the
+   * default text-selection behaviour Yomitan relies on.
+   */
+  onBlockSelect?: (block: MokuroBlock, idx: number) => void;
 }
+
+const LONG_PRESS_MS = 500;
 
 /**
  * Renders mokuro OCR blocks as absolutely-positioned, transparent-but-selectable
@@ -21,7 +30,14 @@ interface OcrOverlayProps {
  * remains real DOM text. Yomitan and similar dictionary popup extensions scan
  * for text by hit-testing coordinates, so transparent text works fine.
  */
-export function OcrOverlay({ page, debugVisible = false }: OcrOverlayProps) {
+export function OcrOverlay({
+  page,
+  debugVisible = false,
+  onBlockSelect,
+}: OcrOverlayProps) {
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFired = useRef(false);
+
   const sortedBlocks = useMemo(() => {
     if (!page) return [];
     // Render larger blocks first so smaller (likely on-top) blocks land last
@@ -38,6 +54,13 @@ export function OcrOverlay({ page, debugVisible = false }: OcrOverlayProps) {
 
   const { img_width, img_height } = page;
   if (!img_width || !img_height) return null;
+
+  function clearLongPress() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }
 
   return (
     <div
@@ -66,11 +89,44 @@ export function OcrOverlay({ page, debugVisible = false }: OcrOverlayProps) {
           b.font_size > 0 ? Math.min(b.font_size, fitSize) : fitSize;
         const lineHeight = fontSizePx > 0 ? lineSpan / fontSizePx : 1;
         const fontSizeCqw = (fontSizePx / img_width) * 100;
+
+        const gestureProps = onBlockSelect
+          ? {
+              onDoubleClick: (e: React.MouseEvent) => {
+                e.stopPropagation();
+                onBlockSelect(b, idx);
+              },
+              onContextMenu: (e: React.MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onBlockSelect(b, idx);
+              },
+              onTouchStart: () => {
+                longPressFired.current = false;
+                clearLongPress();
+                longPressTimer.current = setTimeout(() => {
+                  longPressFired.current = true;
+                  onBlockSelect(b, idx);
+                }, LONG_PRESS_MS);
+              },
+              onTouchEnd: () => {
+                clearLongPress();
+              },
+              onTouchMove: () => {
+                clearLongPress();
+              },
+              onTouchCancel: () => {
+                clearLongPress();
+              },
+            }
+          : null;
+
         return (
           <div
             key={idx}
             lang="ja"
             data-ocr-block
+            {...gestureProps}
             style={{
               position: "absolute",
               left: `${left}%`,
@@ -93,7 +149,7 @@ export function OcrOverlay({ page, debugVisible = false }: OcrOverlayProps) {
               // Re-enable pointer events here so Yomitan can hit-test the text.
               pointerEvents: "auto",
               userSelect: "text",
-              cursor: "text",
+              cursor: onBlockSelect ? "context-menu" : "text",
             }}
           >
             {b.lines.map((line, i) => (

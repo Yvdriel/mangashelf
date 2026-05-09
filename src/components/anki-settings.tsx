@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSettings } from "@/contexts/settings";
 import {
   ANKI_DEFAULTS,
@@ -22,18 +22,6 @@ interface ConnectionState {
 
 export function AnkiSettings() {
   const { settings, loaded, saving, save } = useSettings();
-  const [draft, setDraft] = useState<AnkiSettingsT>(settings.anki);
-  const [conn, setConn] = useState<ConnectionState>({ status: "idle" });
-  const [origin, setOrigin] = useState<string>("");
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
-
-  useEffect(() => {
-    if (loaded) setDraft(settings.anki);
-  }, [loaded, settings.anki]);
 
   if (!loaded) {
     return (
@@ -43,6 +31,32 @@ export function AnkiSettings() {
       </section>
     );
   }
+
+  return (
+    <AnkiSettingsForm
+      key={JSON.stringify(settings.anki)}
+      initial={settings.anki}
+      saving={saving}
+      onSave={async (next) => save({ ankiSettings: next })}
+    />
+  );
+}
+
+function AnkiSettingsForm({
+  initial,
+  saving,
+  onSave,
+}: {
+  initial: AnkiSettingsT;
+  saving: boolean;
+  onSave: (next: AnkiSettingsT) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState<AnkiSettingsT>(initial);
+  const [conn, setConn] = useState<ConnectionState>({ status: "idle" });
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [origin] = useState<string>(() =>
+    typeof window === "undefined" ? "" : window.location.origin,
+  );
 
   function update<K extends keyof AnkiSettingsT>(
     key: K,
@@ -57,7 +71,7 @@ export function AnkiSettings() {
   async function commit() {
     setSaveError(null);
     try {
-      await save({ ankiSettings: draft });
+      await onSave(draft);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : "Failed to save");
     }
@@ -84,7 +98,7 @@ export function AnkiSettings() {
 
   const corsSnippet = `"webCorsOriginList": [\n    "http://localhost",\n    ${JSON.stringify(origin || "<your-mangashelf-origin>")}\n]`;
 
-  const dirty = JSON.stringify(draft) !== JSON.stringify(settings.anki);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
 
   return (
     <section className="rounded-lg border border-surface-600 bg-surface-800 p-6 space-y-6">

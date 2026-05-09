@@ -119,6 +119,7 @@ def _run_mokuro(volume_path: Path) -> tuple[bool, Optional[str], Optional[str]]:
         "mokuro",
         str(volume_path),
         "--disable_html",
+        "--disable_confirmation",
     ]
     if DEVICE != "cuda":
         args.append("--force_cpu")

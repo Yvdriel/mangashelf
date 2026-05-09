@@ -174,6 +174,13 @@ export const userPreferences = sqliteTable("user_preferences", {
   ocrEnabled: integer("ocr_enabled", { mode: "boolean" })
     .notNull()
     .default(false),
+  ankiSettings: text("anki_settings"),
+  copyStripLinebreaks: integer("copy_strip_linebreaks", { mode: "boolean" })
+    .notNull()
+    .default(true),
+  textViewButton: integer("text_view_button", { mode: "boolean" })
+    .notNull()
+    .default(false),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),

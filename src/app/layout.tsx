@@ -7,6 +7,7 @@ import { DownloadIndicator } from "@/components/download-indicator";
 import { GlobalDownloadProgress } from "@/components/global-download-progress";
 import { DownloadStatusProvider } from "@/contexts/download-status";
 import { ThemeProvider } from "@/contexts/theme";
+import { SettingsProvider } from "@/contexts/settings";
 import { SwRegister } from "@/components/sw-register";
 import { UserMenu } from "@/components/user-menu";
 import { getSession } from "@/lib/auth-helpers";
@@ -96,6 +97,7 @@ export default async function RootLayout({
         className={`${geist.variable} font-[family-name:var(--font-geist)] bg-surface-900 text-surface-50 antialiased`}
       >
         <ThemeProvider initialPreference={preference}>
+         <SettingsProvider>
           <DownloadStatusProvider>
             <nav className="sticky top-0 z-50 border-b border-surface-600 bg-surface-900/80 backdrop-blur-sm pt-[env(safe-area-inset-top)]">
               <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-[max(1rem,env(safe-area-inset-left))] min-w-0">
@@ -130,6 +132,7 @@ export default async function RootLayout({
               {children}
             </main>
           </DownloadStatusProvider>
+         </SettingsProvider>
         </ThemeProvider>
         <SwRegister />
       </body>

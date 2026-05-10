@@ -407,16 +407,3 @@ export const importHistoryVolume = sqliteTable("import_history_volume", {
   errorMessage: text("error_message"),
 });
 
-// --- Dictionary metadata ---
-//
-// `dict_term` and the `dict_term_fts` virtual table are managed in raw SQL
-// from `src/lib/dict/index-builder.ts` because Drizzle does not model FTS5.
-// Only the version row lives here so it shows up in db:studio.
-export const dictMeta = sqliteTable("dict_meta", {
-  source: text("source").primaryKey(),
-  version: text("version").notNull(),
-  entryCount: integer("entry_count").notNull().default(0),
-  builtAt: integer("built_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
-});

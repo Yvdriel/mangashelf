@@ -124,3 +124,89 @@ html:not([data-no-transition]) {
   transition-property: background-color, color, border-color;
   transition-duration: 0.2s;
 }
+
+/* === Yomitan structured-content rendering ===
+   Yomitan annotates nodes via `data-*` attributes (e.g. `data-content="tag"`
+   for POS-tag pills, `data-content="glossary"` for sense bodies, etc.). The
+   React renderer in `anki-card-dialog.tsx` projects these onto `sc-*`
+   classNames so we can style them without coupling to specific dictionaries. */
+.sc-content-tag,
+.sc-content-tag-list-tag {
+  display: inline-block;
+  padding: 0 0.4rem;
+  margin-right: 0.3rem;
+  margin-bottom: 0.2rem;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  border-radius: 0.25rem;
+  border: 1px solid oklch(from currentColor l c h / 0.25);
+  color: var(--color-surface-200);
+  background: var(--color-surface-700);
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+.sc-content-tag-list {
+  margin-bottom: 0.4rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+}
+.sc-content-glossary {
+  margin-bottom: 0.6rem;
+}
+.sc-content-glossary > ul,
+.sc-content-glossary > ol {
+  margin-left: 1.1rem;
+}
+.sc-content-glossary li {
+  margin: 0.05rem 0;
+  list-style: disc;
+}
+.sc-content-glossary ol li {
+  list-style: decimal;
+}
+.sc-content-example {
+  margin: 0.35rem 0 0.35rem 0.5rem;
+  padding-left: 0.5rem;
+  border-left: 2px solid var(--color-surface-600);
+  color: var(--color-surface-200);
+  font-size: 0.85em;
+}
+.sc-content-example-sentence {
+  display: block;
+}
+.sc-content-example-translation {
+  display: block;
+  color: var(--color-surface-300);
+}
+.sc-content-xref-section,
+.sc-content-related,
+.sc-content-related-section {
+  margin-top: 0.4rem;
+  font-size: 0.85em;
+  color: var(--color-surface-300);
+}
+.sc-content-xref::before,
+.sc-content-related::before {
+  content: "→ ";
+  color: var(--color-surface-400);
+}
+.sc-content-forms,
+.sc-content-forms-section,
+.sc-content-form-list,
+.sc-content-other-forms {
+  margin-top: 0.4rem;
+  font-size: 0.85em;
+  color: var(--color-surface-300);
+}
+.sc-content-source-info {
+  margin-top: 0.4rem;
+  font-size: 0.7rem;
+  color: var(--color-surface-400);
+}
+/* Generic block-level fallback so adjacent <div>s in a glossary entry
+   stack cleanly even when the dictionary doesn't tag them. */
+.dict-glossary > div + div {
+  margin-top: 0.25rem;
+}

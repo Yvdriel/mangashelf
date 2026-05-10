@@ -6,6 +6,7 @@ import { ThemePicker } from "@/components/theme-picker";
 import { ReaderSettings } from "@/components/reader-settings";
 import { TextToolsSettings } from "@/components/text-tools-settings";
 import { AnkiSettings } from "@/components/anki-settings";
+import { DictSettings } from "@/components/dict-settings";
 import QRCode from "qrcode";
 
 interface AccountSettingsProps {
@@ -23,6 +24,7 @@ export function AccountSettings({ userName, userEmail }: AccountSettingsProps) {
       <ReaderSettings />
       <TextToolsSettings />
       <AnkiSettings />
+      <DictSettings />
       <ProfileSection userName={userName} userEmail={userEmail} />
       <ChangePasswordSection />
       <TwoFactorSection />

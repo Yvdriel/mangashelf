@@ -9,6 +9,7 @@ import {
   taskCompleted,
   taskFailed,
 } from "./background/task-registry";
+import { enqueueVolumeOcr } from "./ocr";
 
 const MANGA_DIR = process.env.MANGA_DIR || "/manga";
 
@@ -170,14 +171,24 @@ function _syncLibraryInner(): {
         .get();
 
       for (const vol of item.volumes) {
-        db.insert(volume)
+        const inserted = db
+          .insert(volume)
           .values({
             mangaId: newManga.id,
             volumeNumber: vol.number,
             folderName: vol.folderName,
             pageCount: vol.pages.length,
           })
-          .run();
+          .returning()
+          .get();
+        try {
+          enqueueVolumeOcr(inserted.id);
+        } catch (e) {
+          console.warn(
+            `[MangaShelf] OCR enqueue failed for new volume ${inserted.id}:`,
+            e,
+          );
+        }
       }
       added++;
     } else {
@@ -213,14 +224,24 @@ function _syncLibraryInner(): {
             .where(eq(volume.id, exVol.id))
             .run();
         } else {
-          db.insert(volume)
+          const inserted = db
+            .insert(volume)
             .values({
               mangaId: ex.id,
               volumeNumber: vol.number,
               folderName: vol.folderName,
               pageCount: vol.pages.length,
             })
-            .run();
+            .returning()
+            .get();
+          try {
+            enqueueVolumeOcr(inserted.id);
+          } catch (e) {
+            console.warn(
+              `[MangaShelf] OCR enqueue failed for new volume ${inserted.id}:`,
+              e,
+            );
+          }
         }
       }
       updated++;

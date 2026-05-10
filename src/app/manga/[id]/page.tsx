@@ -13,6 +13,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { MangaDescription } from "@/components/manga-description";
 import { DeleteMangaButton } from "@/components/delete-manga-button";
+import { OcrMangaButton } from "@/components/ocr-manga-button";
+import { getMangaOcrSummary, getVolumeOcrStatuses } from "@/lib/ocr";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +98,9 @@ export default async function MangaDetailPage({
       }
     }
   }
+
+  const ocrSummary = getMangaOcrSummary(mangaId);
+  const ocrStatusByVolumeId = getVolumeOcrStatuses(mangaId);
 
   const completedCount = progress.filter((p) => p.isCompleted).length;
 
@@ -234,6 +239,10 @@ export default async function MangaDetailPage({
                       : `Read Vol ${targetVolume.volumeNumber}`}
                 </Link>
               )}
+              <OcrMangaButton
+                mangaId={mangaId}
+                initialSummary={ocrSummary}
+              />
               {session.user.role === "admin" && (
                 <DeleteMangaButton
                   mangaId={mangaId}
@@ -260,6 +269,7 @@ export default async function MangaDetailPage({
               ? "reading"
               : "unread";
           const dl = downloadStatusByVolNum.get(vol.volumeNumber);
+          const ocrStatus = ocrStatusByVolumeId.get(vol.id);
 
           return (
             <Link
@@ -277,6 +287,30 @@ export default async function MangaDetailPage({
               </div>
 
               <div className="flex items-center gap-3">
+                {ocrStatus === "ready" && (
+                  <span
+                    title="Mokuro OCR available"
+                    className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-400"
+                  >
+                    OCR
+                  </span>
+                )}
+                {(ocrStatus === "queued" || ocrStatus === "running") && (
+                  <span
+                    title="Mokuro OCR processing"
+                    className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-400"
+                  >
+                    OCR…
+                  </span>
+                )}
+                {ocrStatus === "failed" && (
+                  <span
+                    title="Mokuro OCR failed"
+                    className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-red-400"
+                  >
+                    OCR ✗
+                  </span>
+                )}
                 {dl && dl.status === "downloading" && (
                   <span className="flex items-center gap-1.5 rounded-full bg-blue-500/20 px-2 py-0.5 text-xs font-medium text-blue-400">
                     Downloading {Math.round(dl.progress)}%

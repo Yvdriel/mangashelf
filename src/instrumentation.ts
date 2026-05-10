@@ -19,6 +19,10 @@ export async function register() {
     const { startMonitorInterval } = await import("./lib/monitor");
     startMonitorInterval();
 
+    // Start OCR dispatcher (mokuro sidecar)
+    const { startOcrDispatcher } = await import("./lib/ocr");
+    startOcrDispatcher();
+
     // Clean up stale import sessions from previous runs
     const { cleanupStaleSessions } = await import("./lib/import-session");
     cleanupStaleSessions({ startup: true });

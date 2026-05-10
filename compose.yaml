@@ -121,6 +121,8 @@ services:
       - DOWNLOAD_CHECK_INTERVAL=30
       - MONITOR_INTERVAL=3600
       - AUTO_DOWNLOAD=false
+      - MOKURO_URL=http://mokuro-worker:8000
+      - OCR_DISPATCH_INTERVAL=15
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - AUTH_RP_ID=${AUTH_RP_ID:-localhost}
       - AUTH_ORIGIN=${AUTH_ORIGIN:-http://localhost:3000}
@@ -133,6 +135,28 @@ services:
       - arrstack
     ports:
       - 3000:3000
+    depends_on:
+      - mokuro-worker
+    restart: unless-stopped
+
+  mokuro-worker:
+    build: ./mokuro-worker
+    container_name: mokuro-worker
+    environment:
+      - TZ=Europe/Amsterdam
+      # Set MOKURO_DEVICE=cuda and configure the NVIDIA runtime
+      # (deploy.resources.reservations.devices) to enable GPU acceleration.
+      - MOKURO_DEVICE=${MOKURO_DEVICE:-cpu}
+      # Restrict OCR jobs to volumes under this root. Defence in depth in case
+      # the worker is ever exposed beyond the internal arrstack network.
+      - MOKURO_ALLOWED_ROOT=/manga
+    volumes:
+      # Read-write so mokuro can write `<volume>.mokuro` JSON sidecar files
+      # alongside each volume folder.
+      - ./media/manga:/manga
+      - mokuro-models:/models
+    networks:
+      - arrstack
     restart: unless-stopped
 
 networks:
@@ -141,3 +165,4 @@ networks:
 
 volumes:
   mangashelf-data:
+  mokuro-models:

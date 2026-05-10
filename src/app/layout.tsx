@@ -7,6 +7,9 @@ import { DownloadIndicator } from "@/components/download-indicator";
 import { GlobalDownloadProgress } from "@/components/global-download-progress";
 import { DownloadStatusProvider } from "@/contexts/download-status";
 import { ThemeProvider } from "@/contexts/theme";
+import { SettingsProvider } from "@/contexts/settings";
+import { CopyHandler } from "@/components/copy-handler";
+import { ThemedToaster } from "@/components/themed-toaster";
 import { SwRegister } from "@/components/sw-register";
 import { UserMenu } from "@/components/user-menu";
 import { getSession } from "@/lib/auth-helpers";
@@ -96,40 +99,44 @@ export default async function RootLayout({
         className={`${geist.variable} font-[family-name:var(--font-geist)] bg-surface-900 text-surface-50 antialiased`}
       >
         <ThemeProvider initialPreference={preference}>
-          <DownloadStatusProvider>
-            <nav className="sticky top-0 z-50 border-b border-surface-600 bg-surface-900/80 backdrop-blur-sm pt-[env(safe-area-inset-top)]">
-              <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-[max(1rem,env(safe-area-inset-left))] min-w-0">
-                <div className="flex items-center gap-6">
-                  <Link
-                    href="/"
-                    className="hover:opacity-80 transition-opacity"
-                  >
-                    <Logo className="h-8 w-8" />
-                  </Link>
-                  {session && <Nav isAdmin={isAdmin} />}
+          <SettingsProvider>
+            <CopyHandler />
+            <ThemedToaster />
+            <DownloadStatusProvider>
+              <nav className="sticky top-0 z-50 border-b border-surface-600 bg-surface-900/80 backdrop-blur-sm pt-[env(safe-area-inset-top)]">
+                <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-[max(1rem,env(safe-area-inset-left))] min-w-0">
+                  <div className="flex items-center gap-6">
+                    <Link
+                      href="/"
+                      className="hover:opacity-80 transition-opacity"
+                    >
+                      <Logo className="h-8 w-8" />
+                    </Link>
+                    {session && <Nav isAdmin={isAdmin} />}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {session && isAdmin && (
+                      <>
+                        <DownloadIndicator />
+                        <ScanButton />
+                      </>
+                    )}
+                    {session && (
+                      <UserMenu
+                        userName={session.user.name}
+                        userEmail={session.user.email}
+                        isAdmin={isAdmin}
+                      />
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {session && isAdmin && (
-                    <>
-                      <DownloadIndicator />
-                      <ScanButton />
-                    </>
-                  )}
-                  {session && (
-                    <UserMenu
-                      userName={session.user.name}
-                      userEmail={session.user.email}
-                      isAdmin={isAdmin}
-                    />
-                  )}
-                </div>
-              </div>
-            </nav>
-            {session && isAdmin && <GlobalDownloadProgress />}
-            <main className="mx-auto max-w-7xl px-[max(1rem,env(safe-area-inset-left))] py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-              {children}
-            </main>
-          </DownloadStatusProvider>
+              </nav>
+              {session && isAdmin && <GlobalDownloadProgress />}
+              <main className="mx-auto max-w-7xl px-[max(1rem,env(safe-area-inset-left))] py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+                {children}
+              </main>
+            </DownloadStatusProvider>
+          </SettingsProvider>
         </ThemeProvider>
         <SwRegister />
       </body>

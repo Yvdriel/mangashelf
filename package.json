@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"
@@ -19,11 +21,14 @@
     "better-sqlite3": "^12.6.2",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.1",
+    "fflate": "^0.8.2",
+    "idb": "^8.0.3",
     "next": "16.1.6",
     "qrcode": "^1.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "sonner": "^2.0.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -36,7 +41,9 @@
     "drizzle-kit": "^0.31.9",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "fake-indexeddb": "^6.0.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.5"
   }
 }

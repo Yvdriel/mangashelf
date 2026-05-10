@@ -171,6 +171,16 @@ export const userPreferences = sqliteTable("user_preferences", {
     .unique()
     .references(() => user.id, { onDelete: "cascade" }),
   theme: text("theme").notNull().default("system"),
+  ocrEnabled: integer("ocr_enabled", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  ankiSettings: text("anki_settings"),
+  copyStripLinebreaks: integer("copy_strip_linebreaks", { mode: "boolean" })
+    .notNull()
+    .default(true),
+  textViewButton: integer("text_view_button", { mode: "boolean" })
+    .notNull()
+    .default(false),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
@@ -214,6 +224,34 @@ export const volume = sqliteTable(
     uniqueIndex("volume_manga_number_idx").on(
       table.mangaId,
       table.volumeNumber,
+    ),
+  ],
+);
+
+export const volumeOcr = sqliteTable(
+  "volume_ocr",
+  {
+    volumeId: integer("volume_id")
+      .primaryKey()
+      .references(() => volume.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("queued"),
+    priority: text("priority").notNull().default("normal"),
+    jobId: text("job_id"),
+    errorMessage: text("error_message"),
+    queuedAt: integer("queued_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [
+    // Backs `nextDispatchable()` — keeps queue selection O(log n) regardless
+    // of library size. Order matches the WHERE/ORDER BY clauses there.
+    index("volume_ocr_status_priority_queued_at_idx").on(
+      table.status,
+      table.priority,
+      table.queuedAt,
     ),
   ],
 );
@@ -368,3 +406,4 @@ export const importHistoryVolume = sqliteTable("import_history_volume", {
   status: text("status").notNull(), // "imported" | "replaced" | "skipped" | "failed"
   errorMessage: text("error_message"),
 });
+

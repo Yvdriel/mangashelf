@@ -151,8 +151,12 @@ async function checkJackett(): Promise<ServiceStatus> {
   const signal = AbortSignal.timeout(CHECK_TIMEOUT);
 
   try {
+    const params = new URLSearchParams({
+      apikey: JACKETT_API_KEY,
+      Query: "",
+    });
     const res = await fetch(
-      `${JACKETT_URL}/api/v2.0/indexers?configured=true&apikey=${JACKETT_API_KEY}`,
+      `${JACKETT_URL}/api/v2.0/indexers/all/results?${params}`,
       { signal },
     );
 
@@ -176,7 +180,10 @@ async function checkJackett(): Promise<ServiceStatus> {
       };
     }
 
-    const indexers = (await res.json()) as unknown[];
+    const data = (await res.json()) as {
+      Indexers?: Array<{ Status?: number }>;
+    };
+    const indexers = data.Indexers ?? [];
     return {
       name: "Jackett",
       status: indexers.length === 0 ? "degraded" : "connected",

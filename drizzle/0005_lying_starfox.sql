@@ -1,0 +1,1 @@
+CREATE INDEX `volume_ocr_status_priority_queued_at_idx` ON `volume_ocr` (`status`,`priority`,`queued_at`);

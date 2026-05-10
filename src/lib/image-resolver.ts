@@ -46,7 +46,9 @@ export function resolvePageImage(
 
   const pagesPath = path.join(MANGA_DIR, mangaData.folderName, vol.folderName);
   const resolved = path.resolve(pagesPath);
-  if (!resolved.startsWith(path.resolve(MANGA_DIR))) {
+  const root = path.resolve(MANGA_DIR);
+  const rel = path.relative(root, resolved);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) {
     return { ok: false, error: "forbidden" };
   }
   if (!fs.existsSync(resolved)) return { ok: false, error: "not-found" };

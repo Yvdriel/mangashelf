@@ -9,7 +9,7 @@ import { DownloadStatusProvider } from "@/contexts/download-status";
 import { ThemeProvider } from "@/contexts/theme";
 import { SettingsProvider } from "@/contexts/settings";
 import { CopyHandler } from "@/components/copy-handler";
-import { Toaster } from "sonner";
+import { ThemedToaster } from "@/components/themed-toaster";
 import { SwRegister } from "@/components/sw-register";
 import { UserMenu } from "@/components/user-menu";
 import { getSession } from "@/lib/auth-helpers";
@@ -101,7 +101,7 @@ export default async function RootLayout({
         <ThemeProvider initialPreference={preference}>
           <SettingsProvider>
             <CopyHandler />
-            <Toaster richColors position="bottom-center" theme="dark" />
+            <ThemedToaster />
             <DownloadStatusProvider>
               <nav className="sticky top-0 z-50 border-b border-surface-600 bg-surface-900/80 backdrop-blur-sm pt-[env(safe-area-inset-top)]">
                 <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-[max(1rem,env(safe-area-inset-left))] min-w-0">

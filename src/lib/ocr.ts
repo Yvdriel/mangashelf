@@ -313,6 +313,36 @@ async function processOnce(): Promise<string> {
 }
 
 let dispatcherStarted = false;
+let dispatcherInFlight = false;
+
+// Single-flight wrapper around processOnce(). Synchronously claims the
+// inFlight flag before any await so concurrent callers (interval tick + admin
+// triggerTask) can never overlap.
+async function singleFlightProcessOnce(): Promise<string> {
+  if (dispatcherInFlight) return "skipped: already in flight";
+  dispatcherInFlight = true;
+  try {
+    return await processOnce();
+  } finally {
+    dispatcherInFlight = false;
+  }
+}
+
+async function intervalTick(): Promise<void> {
+  if (dispatcherInFlight) return;
+  taskStarted("ocr-dispatcher");
+  try {
+    const result = await singleFlightProcessOnce();
+    taskCompleted("ocr-dispatcher", result);
+  } catch (e) {
+    taskFailed("ocr-dispatcher", e instanceof Error ? e.message : String(e));
+  } finally {
+    updateTaskNextRun(
+      "ocr-dispatcher",
+      new Date(Date.now() + DISPATCH_INTERVAL_MS),
+    );
+  }
+}
 
 export function startOcrDispatcher() {
   if (dispatcherStarted) return;
@@ -321,29 +351,10 @@ export function startOcrDispatcher() {
   registerTask("ocr-dispatcher", {
     description: "Dispatch & poll mokuro OCR jobs",
     intervalMs: DISPATCH_INTERVAL_MS,
-    run: async () => processOnce(),
+    run: singleFlightProcessOnce,
   });
 
-  let inFlight = false;
-  const tick = async () => {
-    if (inFlight) return;
-    inFlight = true;
-    taskStarted("ocr-dispatcher");
-    try {
-      const result = await processOnce();
-      taskCompleted("ocr-dispatcher", result);
-    } catch (e) {
-      taskFailed("ocr-dispatcher", e instanceof Error ? e.message : String(e));
-    } finally {
-      inFlight = false;
-      updateTaskNextRun(
-        "ocr-dispatcher",
-        new Date(Date.now() + DISPATCH_INTERVAL_MS),
-      );
-    }
-  };
-
-  setInterval(tick, DISPATCH_INTERVAL_MS);
+  setInterval(intervalTick, DISPATCH_INTERVAL_MS);
 }
 
 export interface MangaOcrSummary {

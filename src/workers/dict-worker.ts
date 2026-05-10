@@ -56,6 +56,14 @@ ctx.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
         post({ id: req.id, type: "list:ok", dicts });
         break;
       }
+      default: {
+        const unknown = req as { id: number; type: string };
+        post({
+          id: unknown.id,
+          type: "error",
+          message: `unknown request type: ${unknown.type}`,
+        });
+      }
     }
   } catch (e) {
     post({

@@ -12,9 +12,11 @@ export interface CatalogEntry {
   priority: number;
 }
 
-// URLs target the canonical "always-latest" GitHub release downloads. They
-// require GitHub-issued certs and follow redirects; the install proxy fetches
-// these server-side so the browser never hits the cross-origin host.
+// URLs target GitHub release downloads, fetched server-side by the install
+// proxy so the browser avoids the cross-origin host. Most use the
+// "always-latest" alias; entries that pin a specific tag do so because the
+// upstream only publishes pre-releases and `/releases/latest/` skips those —
+// don't "fix" them back to `/latest/` or installs will 404.
 export const CATALOG: ReadonlyArray<CatalogEntry> = [
   {
     id: "jitendex",
@@ -33,7 +35,7 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     description:
       "Per-kanji readings, meanings, JLPT level, stroke count, frequency.",
     kind: "kanji",
-    url: "https://github.com/MarvNC/kanjidic2-yomitan/releases/latest/download/KANJIDIC2.zip",
+    url: "https://github.com/yomidevs/jmdict-yomitan/releases/latest/download/KANJIDIC_english.zip",
     license: "CC BY-SA 4.0",
     homepage:
       "https://www.edrdg.org/wiki/index.php/KANJIDIC_Project",
@@ -45,7 +47,8 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     description:
       "Frequency rank from jpdb.io's modern reading-corpus pipeline.",
     kind: "frequency",
-    url: "https://github.com/Kuuuube/yomitan-dictionaries/releases/latest/download/jpdb_v2.2_freq.zip",
+    // Pinned tag: upstream only ships a `yomitan-permalink` pre-release.
+    url: "https://github.com/Kuuuube/yomitan-dictionaries/releases/download/yomitan-permalink/JPDB_v2.2_Frequency_Kana.zip",
     license: "—",
     homepage: "https://jpdb.io/",
     priority: 2,
@@ -56,21 +59,11 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     description:
       "Balanced Corpus of Contemporary Written Japanese rankings.",
     kind: "frequency",
-    url: "https://github.com/MarvNC/BCCWJ-yomitan/releases/latest/download/BCCWJ.zip",
+    // Pinned tag: upstream only ships a `yomitan-permalink` pre-release.
+    url: "https://github.com/Kuuuube/yomitan-dictionaries/releases/download/yomitan-permalink/BCCWJ_SUW_LUW_combined.zip",
     license: "research-use",
     homepage: "https://clrd.ninjal.ac.jp/bccwj/",
     priority: 3,
-  },
-  {
-    id: "innocent-corpus",
-    title: "Innocent Corpus",
-    description:
-      "Light-novel / fiction-derived frequency list (popular for reading).",
-    kind: "frequency",
-    url: "https://github.com/yomidevs/yomitan/releases/latest/download/innocent_corpus.zip",
-    license: "MIT",
-    homepage: "https://learnjapanese.moe/freq/",
-    priority: 4,
   },
 ];
 

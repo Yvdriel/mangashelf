@@ -1,4 +1,5 @@
 import { unzipSync, type UnzipFileInfo } from "fflate";
+import type { InstallPhase } from "../protocol";
 import type {
   FrequencyRecord,
   GlossaryNode,
@@ -62,8 +63,10 @@ export type BankChunk =
   | { kind: "frequency"; rows: FrequencyRow[] };
 
 export type StreamYield =
-  | { kind: "index"; index: YomitanIndex }
-  | BankChunk;
+  | { kind: "index"; index: YomitanIndex; totalBanks: number }
+  | { kind: "bankStart"; index: number }
+  | BankChunk
+  | { kind: "bankDone" };
 
 const DECODER = new TextDecoder("utf-8");
 
@@ -85,12 +88,16 @@ function parseJSON<T>(bytes: Uint8Array): T {
 // iOS Safari (PWA) memory pressure during Jitendex install motivated this:
 // holding all decompressed banks + all parsed entries simultaneously pushed
 // the worker over WebKit's ~250 MB limit and the page would reload.
+//
+// Progress is reported by the consumer (`installDictionary`) on the
+// `bankDone` marker — banks-completed is the single monotonic dimension.
 export async function* streamYomitanZip(
   zip: ArrayBuffer,
-  onProgress?: (done: number, total: number) => void,
+  onPhase?: (phase: InstallPhase, detail: string) => void,
 ): AsyncGenerator<StreamYield, void, void> {
   const zipBytes = new Uint8Array(zip);
 
+  onPhase?.("scanning", "Reading index");
   const indexBytes = decodeOne(zipBytes, "index.json");
   if (!indexBytes) throw new Error("Missing index.json");
   const index = parseJSON<YomitanIndex>(indexBytes);
@@ -99,8 +106,8 @@ export async function* streamYomitanZip(
       `Unsupported dictionary format ${index.format}. Only v3 is supported.`,
     );
   }
-  yield { kind: "index", index };
 
+  onPhase?.("scanning", "Scanning archive");
   const bankNames: string[] = [];
   unzipSync(zipBytes, {
     filter: (info: UnzipFileInfo) => {
@@ -111,15 +118,14 @@ export async function* streamYomitanZip(
     },
   });
 
-  let processed = 0;
-  const total = bankNames.length;
-  onProgress?.(0, total);
+  yield { kind: "index", index, totalBanks: bankNames.length };
 
-  for (const name of bankNames) {
+  for (let i = 0; i < bankNames.length; i++) {
+    const name = bankNames[i];
+    yield { kind: "bankStart", index: i + 1 };
     const bytes = decodeOne(zipBytes, name);
     if (!bytes) {
-      processed++;
-      onProgress?.(processed, total);
+      yield { kind: "bankDone" };
       continue;
     }
 
@@ -200,8 +206,7 @@ export async function* streamYomitanZip(
       yield { kind: "kanji", rows: kanji };
     }
 
-    processed++;
-    onProgress?.(processed, total);
+    yield { kind: "bankDone" };
   }
 }
 

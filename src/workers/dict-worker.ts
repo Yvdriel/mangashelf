@@ -37,11 +37,22 @@ ctx.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
         break;
       }
       case "install": {
-        const stream = streamYomitanZip(req.zip, (done, total) =>
-          post({ id: req.id, type: "progress", phase: "parse", done, total }),
+        const stream = streamYomitanZip(req.zip, (phase, detail) =>
+          post({
+            id: req.id,
+            type: "progress",
+            done: 0,
+            total: 0,
+            phase,
+            detail,
+          }),
         );
-        const dict = await installDictionary(db, req.target, stream, (done, total) =>
-          post({ id: req.id, type: "progress", phase: "insert", done, total }),
+        const dict = await installDictionary(
+          db,
+          req.target,
+          stream,
+          (done, total, phase, detail) =>
+            post({ id: req.id, type: "progress", done, total, phase, detail }),
         );
         // Drop the only remaining ref to the source zip so the worker can
         // GC ~30-40 MB before responding. Matters on iOS Safari PWA.

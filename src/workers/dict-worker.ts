@@ -5,7 +5,7 @@ import { deleteDictionary, listInstalled } from "@/lib/dict/db/queries";
 import { japaneseTransforms } from "@/lib/dict/transforms/ja-transforms";
 import { LanguageTransformer } from "@/lib/dict/transforms/language-transformer";
 import { scanAll, scanAt } from "@/lib/dict/scanner";
-import { parseYomitanZip } from "@/lib/dict/install/yomitan-zip";
+import { streamYomitanZip } from "@/lib/dict/install/yomitan-zip";
 import { installDictionary } from "@/lib/dict/install/ingest";
 import type {
   WorkerMessage,
@@ -37,12 +37,15 @@ ctx.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
         break;
       }
       case "install": {
-        const parsed = await parseYomitanZip(req.zip, (done, total) =>
+        const stream = streamYomitanZip(req.zip, (done, total) =>
           post({ id: req.id, type: "progress", phase: "parse", done, total }),
         );
-        const dict = await installDictionary(db, req.target, parsed, (done, total) =>
+        const dict = await installDictionary(db, req.target, stream, (done, total) =>
           post({ id: req.id, type: "progress", phase: "insert", done, total }),
         );
+        // Drop the only remaining ref to the source zip so the worker can
+        // GC ~30-40 MB before responding. Matters on iOS Safari PWA.
+        (req as { zip: ArrayBuffer | null }).zip = null;
         post({ id: req.id, type: "install:ok", dict });
         break;
       }

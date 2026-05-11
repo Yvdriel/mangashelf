@@ -103,21 +103,25 @@ export async function putInstalled(
 
 // Yields between chunks so the worker's message queue can drain (otherwise
 // `install` blocks `list` / `lookup` for the entire ingest).
+//
+// `dictId` is merged in per-row here rather than by the caller — saves a full
+// duplicate row array which matters for 250k-entry dictionaries on iOS.
+// Smaller chunkSize (500 vs old 1000) gives WebKit more frequent GC points
+// while ingesting; total wall time is similar.
 export async function bulkInsert<S extends "terms" | "termMeta" | "kanji" | "kanjiMeta" | "frequency">(
   db: IDBPDatabase<DictDB>,
   store: S,
-  rows: ReadonlyArray<DictDB[S]["value"]>,
+  rows: ReadonlyArray<Omit<DictDB[S]["value"], "id" | "dict">>,
+  dictId: string,
   onChunk?: (done: number, total: number) => void,
-  chunkSize = 1000,
+  chunkSize = 500,
 ): Promise<void> {
   const total = rows.length;
   for (let start = 0; start < total; start += chunkSize) {
     const end = Math.min(start + chunkSize, total);
     const tx = db.transaction(store, "readwrite");
     for (let i = start; i < end; i++) {
-      // idb's typing for `add` on an autoIncrement store wants the value
-      // without `id`. Casting is safe — the runtime accepts either shape.
-      void tx.store.add(rows[i] as DictDB[S]["value"]);
+      void tx.store.add({ ...rows[i], dict: dictId } as DictDB[S]["value"]);
     }
     await tx.done;
     onChunk?.(end, total);

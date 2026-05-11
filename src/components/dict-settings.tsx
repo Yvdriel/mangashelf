@@ -55,42 +55,13 @@ export function DictSettings() {
         totalBytes: null,
       });
       try {
-        const res = await fetch("/api/dict/install", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: entry.id }),
-        });
-        if (!res.ok) {
-          const data = (await res.json().catch(() => ({}))) as {
-            error?: string;
-          };
-          throw new Error(data.error || `Install failed (${res.status})`);
-        }
-        const totalHeader = res.headers.get("content-length");
-        const total = totalHeader ? Number(totalHeader) : null;
-        const reader = res.body?.getReader();
-        if (!reader) throw new Error("No response body");
-        const chunks: Uint8Array[] = [];
-        let received = 0;
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          if (value) {
-            chunks.push(value);
-            received += value.byteLength;
-            setRow(entry.id, {
-              kind: "downloading",
-              receivedBytes: received,
-              totalBytes: total,
-            });
-          }
-        }
-        const buf = new Uint8Array(received);
-        let offset = 0;
-        for (const c of chunks) {
-          buf.set(c, offset);
-          offset += c.byteLength;
-        }
+        const buf = await downloadDict(entry.id, (received, total) =>
+          setRow(entry.id, {
+            kind: "downloading",
+            receivedBytes: received,
+            totalBytes: total,
+          }),
+        );
         setRow(entry.id, { kind: "parsing", done: 0, total: 1 });
         await getDictClient().install(
           {
@@ -99,7 +70,7 @@ export function DictSettings() {
             kind: entry.kind,
             priority: entry.priority,
           },
-          buf.buffer,
+          buf,
           (p) => {
             if (p.phase === "parse") {
               setRow(entry.id, { kind: "parsing", done: p.done, total: p.total });
@@ -108,6 +79,8 @@ export function DictSettings() {
             }
           },
         );
+        // `buf` is transferred to the worker on postMessage, so the local
+        // reference is already detached. The closure holds nothing else.
         setRow(entry.id, { kind: "idle" });
         await refresh();
       } catch (e) {
@@ -288,6 +261,43 @@ function ProgressLabel({
       </p>
     </div>
   );
+}
+
+// Streams the install proxy response into a Blob, then converts to a single
+// ArrayBuffer once. Blob storage is off-heap on WebKit (helps iOS Safari /
+// PWA memory pressure) and the ArrayBuffer is later transferred to the
+// dict worker so this closure releases its reference on postMessage.
+async function downloadDict(
+  id: string,
+  onProgress: (received: number, total: number | null) => void,
+): Promise<ArrayBuffer> {
+  const res = await fetch("/api/dict/install", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error || `Install failed (${res.status})`);
+  }
+  const totalHeader = res.headers.get("content-length");
+  const total = totalHeader ? Number(totalHeader) : null;
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error("No response body");
+  const parts: BlobPart[] = [];
+  let received = 0;
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    if (value) {
+      parts.push(value);
+      received += value.byteLength;
+      onProgress(received, total);
+    }
+  }
+  const blob = new Blob(parts);
+  parts.length = 0;
+  return await blob.arrayBuffer();
 }
 
 function fmtBytes(n: number): string {

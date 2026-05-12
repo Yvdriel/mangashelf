@@ -113,7 +113,7 @@ services:
       - MANGA_DIR=/manga
       - DATABASE_URL=/data/mangashelf.db
       - JACKETT_URL=http://jackett:9117
-      - JACKETT_API_KEY=${JACKETT_API_KEY}
+      - JACKETT_API_KEY=${JACKETT_API_KEY:-76r4hdlzs8psn7xftg2vaayw9sdv75ld}
       - DELUGE_URL=http://deluge:8112
       - DELUGE_PASSWORD=${DELUGE_PASSWORD:-deluge}
       - DELUGE_DOWNLOAD_DIR=/downloads
@@ -123,7 +123,7 @@ services:
       - AUTO_DOWNLOAD=false
       - MOKURO_URL=http://mokuro-worker:8000
       - OCR_DISPATCH_INTERVAL=15
-      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-qLWdfjFAUPF6TfZ8SdrTbDCKnLw4lRWApiRwtov5PEQ=}
       - AUTH_RP_ID=${AUTH_RP_ID:-localhost}
       - AUTH_ORIGIN=${AUTH_ORIGIN:-http://localhost:3000}
       - BETTER_AUTH_BASE_URL=${BETTER_AUTH_BASE_URL:-http://localhost:3000}

@@ -1,4 +1,5 @@
-import { unzip, type Unzipped } from "fflate";
+import { unzipSync, type UnzipFileInfo } from "fflate";
+import type { InstallPhase } from "../protocol";
 import type {
   FrequencyRecord,
   GlossaryNode,
@@ -48,36 +49,56 @@ export type KanjiBankRow = [
 
 export type KanjiMetaBankRow = [string, string, unknown];
 
-export interface ParsedYomitanDict {
-  index: YomitanIndex;
-  terms: Array<Omit<TermRecord, "id" | "dict">>;
-  termMeta: Array<Omit<TermMetaRecord, "id" | "dict">>;
-  kanji: Array<Omit<KanjiRecord, "id" | "dict">>;
-  kanjiMeta: Array<Omit<KanjiMetaRecord, "id" | "dict">>;
-  frequency: Array<Omit<FrequencyRecord, "id" | "dict">>;
-}
+export type TermRow = Omit<TermRecord, "id" | "dict">;
+export type TermMetaRow = Omit<TermMetaRecord, "id" | "dict">;
+export type KanjiRow = Omit<KanjiRecord, "id" | "dict">;
+export type KanjiMetaRow = Omit<KanjiMetaRecord, "id" | "dict">;
+export type FrequencyRow = Omit<FrequencyRecord, "id" | "dict">;
 
-function unzipAsync(buf: Uint8Array): Promise<Unzipped> {
-  return new Promise((resolve, reject) => {
-    unzip(buf, (err, files) => {
-      if (err) reject(err);
-      else resolve(files);
-    });
-  });
-}
+export type BankChunk =
+  | { kind: "terms"; rows: TermRow[] }
+  | { kind: "termMeta"; rows: TermMetaRow[] }
+  | { kind: "kanji"; rows: KanjiRow[] }
+  | { kind: "kanjiMeta"; rows: KanjiMetaRow[] }
+  | { kind: "frequency"; rows: FrequencyRow[] };
+
+export type StreamYield =
+  | { kind: "index"; index: YomitanIndex; totalBanks: number }
+  | { kind: "bankStart"; index: number }
+  | BankChunk
+  | { kind: "bankDone" };
 
 const DECODER = new TextDecoder("utf-8");
+
+function decodeOne(zip: Uint8Array, name: string): Uint8Array | null {
+  const result = unzipSync(zip, {
+    filter: (info: UnzipFileInfo) => info.name === name,
+  });
+  return result[name] ?? null;
+}
 
 function parseJSON<T>(bytes: Uint8Array): T {
   return JSON.parse(DECODER.decode(bytes)) as T;
 }
 
-export async function parseYomitanZip(
+// Streaming generator: decompresses + parses + transforms one bank at a time
+// and yields the rows. The previous bank's bytes and parsed JSON go out of
+// scope before the next is touched, so sustained worker heap stays low.
+//
+// iOS Safari (PWA) memory pressure during Jitendex install motivated this:
+// holding all decompressed banks + all parsed entries simultaneously pushed
+// the worker over WebKit's ~250 MB limit and the page would reload.
+//
+// Progress is reported by the consumer (`installDictionary`) on the
+// `bankDone` marker — banks-completed is the single monotonic dimension.
+export async function* streamYomitanZip(
   zip: ArrayBuffer,
-  onProgress?: (done: number, total: number) => void,
-): Promise<ParsedYomitanDict> {
-  const files = await unzipAsync(new Uint8Array(zip));
-  const indexBytes = files["index.json"];
+  onPhase?: (phase: InstallPhase, detail: string) => void,
+): AsyncGenerator<StreamYield, void, void> {
+  const zipBytes = new Uint8Array(zip);
+
+  onPhase?.("scanning", "Reading index");
+  const indexBytes = decodeOne(zipBytes, "index.json");
   if (!indexBytes) throw new Error("Missing index.json");
   const index = parseJSON<YomitanIndex>(indexBytes);
   if (index.format !== 3) {
@@ -86,29 +107,35 @@ export async function parseYomitanZip(
     );
   }
 
-  const out: ParsedYomitanDict = {
-    index,
-    terms: [],
-    termMeta: [],
-    kanji: [],
-    kanjiMeta: [],
-    frequency: [],
-  };
+  onPhase?.("scanning", "Scanning archive");
+  const bankNames: string[] = [];
+  unzipSync(zipBytes, {
+    filter: (info: UnzipFileInfo) => {
+      if (/(term|term_meta|kanji|kanji_meta)_bank_\d+\.json$/.test(info.name)) {
+        bankNames.push(info.name);
+      }
+      return false;
+    },
+  });
 
-  const bankNames = Object.keys(files).filter((n) =>
-    /(term|term_meta|kanji|kanji_meta)_bank_\d+\.json$/.test(n),
-  );
+  yield { kind: "index", index, totalBanks: bankNames.length };
 
-  let processed = 0;
-  const total = bankNames.length;
-  for (const name of bankNames) {
-    const bytes = files[name];
-    if (!bytes) continue;
+  for (let i = 0; i < bankNames.length; i++) {
+    const name = bankNames[i];
+    yield { kind: "bankStart", index: i + 1 };
+    const bytes = decodeOne(zipBytes, name);
+    if (!bytes) {
+      yield { kind: "bankDone" };
+      continue;
+    }
+
     if (name.startsWith("term_meta_bank_")) {
       const rows = parseJSON<TermMetaBankRow[]>(bytes);
+      const termMeta: TermMetaRow[] = [];
+      const frequency: FrequencyRow[] = [];
       for (const r of rows) {
         const [expression, mode, data] = r;
-        out.termMeta.push({ expression, mode, data });
+        termMeta.push({ expression, mode, data });
         // Surface frequency entries into a queryable record. Yomitan freq
         // payloads come in several shapes:
         //   - number                                  → rank only
@@ -118,7 +145,7 @@ export async function parseYomitanZip(
         if (mode === "freq") {
           const f = extractFrequency(data);
           if (f) {
-            out.frequency.push({
+            frequency.push({
               expression,
               reading: f.reading,
               rank: f.rank,
@@ -127,9 +154,14 @@ export async function parseYomitanZip(
           }
         }
       }
+      yield { kind: "termMeta", rows: termMeta };
+      if (frequency.length > 0) {
+        yield { kind: "frequency", rows: frequency };
+      }
     } else if (name.startsWith("term_bank_")) {
       const rows = parseJSON<TermBankRow[]>(bytes);
-      for (const r of rows) {
+      const terms: TermRow[] = new Array(rows.length);
+      for (let i = 0; i < rows.length; i++) {
         const [
           expression,
           reading,
@@ -139,8 +171,8 @@ export async function parseYomitanZip(
           glossary,
           sequence,
           termTags,
-        ] = r;
-        out.terms.push({
+        ] = rows[i];
+        terms[i] = {
           expression,
           reading: reading || expression,
           expressionReverse: reverseString(expression),
@@ -150,33 +182,32 @@ export async function parseYomitanZip(
           glossary: glossary as GlossaryNode[],
           sequence,
           termTags: splitTags(termTags),
-        });
+        };
       }
+      yield { kind: "terms", rows: terms };
     } else if (name.startsWith("kanji_meta_bank_")) {
       const rows = parseJSON<KanjiMetaBankRow[]>(bytes);
-      for (const r of rows) {
-        const [character, mode, data] = r;
-        out.kanjiMeta.push({ character, mode, data });
-      }
+      const kanjiMeta: KanjiMetaRow[] = rows.map((r) => ({
+        character: r[0],
+        mode: r[1],
+        data: r[2],
+      }));
+      yield { kind: "kanjiMeta", rows: kanjiMeta };
     } else if (name.startsWith("kanji_bank_")) {
       const rows = parseJSON<KanjiBankRow[]>(bytes);
-      for (const r of rows) {
-        const [character, onyomi, kunyomi, tags, meanings, stats] = r;
-        out.kanji.push({
-          character,
-          onyomi: splitTags(onyomi),
-          kunyomi: splitTags(kunyomi),
-          tags: splitTags(tags),
-          meanings,
-          stats: stats ?? {},
-        });
-      }
+      const kanji: KanjiRow[] = rows.map((r) => ({
+        character: r[0],
+        onyomi: splitTags(r[1]),
+        kunyomi: splitTags(r[2]),
+        tags: splitTags(r[3]),
+        meanings: r[4],
+        stats: r[5] ?? {},
+      }));
+      yield { kind: "kanji", rows: kanji };
     }
-    processed++;
-    onProgress?.(processed, total);
-  }
 
-  return out;
+    yield { kind: "bankDone" };
+  }
 }
 
 function splitTags(s: string): string[] {

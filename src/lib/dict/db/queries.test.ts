@@ -40,9 +40,8 @@ describe("dict IDB queries", () => {
 
   it("findTermsBulk dedupes hits matching both expression and reading", async () => {
     db = await openDictDB();
-    const rows: Array<Omit<TermRecord, "id">> = [
+    const rows: Array<Omit<TermRecord, "id" | "dict">> = [
       {
-        dict: "test",
         expression: "食べる",
         reading: "たべる",
         expressionReverse: "るべ食",
@@ -54,7 +53,6 @@ describe("dict IDB queries", () => {
         termTags: [],
       },
       {
-        dict: "test",
         expression: "たべる",
         reading: "たべる",
         expressionReverse: "るべた",
@@ -66,7 +64,7 @@ describe("dict IDB queries", () => {
         termTags: [],
       },
     ];
-    await bulkInsert(db, "terms", rows as TermRecord[]);
+    await bulkInsert(db, "terms", rows, "test");
     const hits = await findTermsBulk(db, ["食べる", "たべる"]);
     expect(hits).toHaveLength(2);
     expect(new Set(hits.map((h) => h.expression))).toEqual(
@@ -76,9 +74,8 @@ describe("dict IDB queries", () => {
 
   it("findKanji returns one row per character", async () => {
     db = await openDictDB();
-    const rows: Array<Omit<KanjiRecord, "id">> = [
+    const rows: Array<Omit<KanjiRecord, "id" | "dict">> = [
       {
-        dict: "k",
         character: "食",
         onyomi: ["ショク"],
         kunyomi: ["た.べる"],
@@ -87,7 +84,7 @@ describe("dict IDB queries", () => {
         stats: {},
       },
     ];
-    await bulkInsert(db, "kanji", rows as KanjiRecord[]);
+    await bulkInsert(db, "kanji", rows, "k");
     const hits = await findKanji(db, ["食", "X"]);
     expect(hits).toHaveLength(1);
     expect(hits[0].character).toBe("食");
@@ -105,20 +102,24 @@ describe("dict IDB queries", () => {
       installedAt: 0,
     };
     await putInstalled(db, dict);
-    await bulkInsert(db, "terms", [
-      {
-        dict: "test",
-        expression: "x",
-        reading: "x",
-        expressionReverse: "x",
-        definitionTags: [],
-        rules: [],
-        score: 0,
-        glossary: ["x"],
-        sequence: 0,
-        termTags: [],
-      },
-    ] as TermRecord[]);
+    await bulkInsert(
+      db,
+      "terms",
+      [
+        {
+          expression: "x",
+          reading: "x",
+          expressionReverse: "x",
+          definitionTags: [],
+          rules: [],
+          score: 0,
+          glossary: ["x"],
+          sequence: 0,
+          termTags: [],
+        },
+      ],
+      "test",
+    );
 
     await deleteDictionary(db, "test");
     expect(await listInstalled(db)).toHaveLength(0);

@@ -5,17 +5,13 @@ import {
   deleteDictionary,
   putInstalled,
 } from "../db/queries";
+import type { InstallPhase } from "../protocol";
 import type {
   DictionaryId,
   DictionaryKind,
-  FrequencyRecord,
   InstalledDictionary,
-  KanjiMetaRecord,
-  KanjiRecord,
-  TermMetaRecord,
-  TermRecord,
 } from "../types";
-import type { ParsedYomitanDict } from "./yomitan-zip";
+import type { StreamYield, YomitanIndex } from "./yomitan-zip";
 
 export interface InstallTarget {
   id: DictionaryId;
@@ -24,78 +20,99 @@ export interface InstallTarget {
   priority: number;
 }
 
+// Consumes the streaming generator from `streamYomitanZip` and inserts each
+// bank into IDB as it arrives. Each chunk's parsed rows are released as soon
+// as the IDB transaction commits — keeping sustained worker heap small.
+//
+// Progress is reported in "banks completed", a single monotonic dimension
+// known up-front from the first yield. Bank size is roughly uniform so this
+// tracks wall time well enough for a UI bar.
 export async function installDictionary(
   db: IDBPDatabase<DictDB>,
   target: InstallTarget,
-  parsed: ParsedYomitanDict,
-  onProgress?: (done: number, total: number) => void,
+  stream: AsyncGenerator<StreamYield, void, void>,
+  onProgress?: (
+    done: number,
+    total: number,
+    phase?: InstallPhase,
+    detail?: string,
+  ) => void,
 ): Promise<InstalledDictionary> {
   // Idempotent: wipe any prior install of the same dict id before inserting.
   await deleteDictionary(db, target.id);
 
   const dictId = target.id;
-  const totals =
-    parsed.terms.length +
-    parsed.termMeta.length +
-    parsed.kanji.length +
-    parsed.kanjiMeta.length +
-    parsed.frequency.length;
-  let done = 0;
-  const tick = (n: number, _t: number) => {
-    onProgress?.(done + n, totals);
-  };
+  let entryCount = 0;
+  let banksDone = 0;
+  let totalBanks = 0;
+  let currentBankIndex = 0;
+  let index: YomitanIndex | null = null;
 
-  if (parsed.terms.length > 0) {
-    const rows: TermRecord[] = parsed.terms.map((r) => ({
-      ...r,
-      dict: dictId,
-    }));
-    await bulkInsert(db, "terms", rows, tick);
-    done += rows.length;
-  }
-  if (parsed.termMeta.length > 0) {
-    const rows: TermMetaRecord[] = parsed.termMeta.map((r) => ({
-      ...r,
-      dict: dictId,
-    }));
-    await bulkInsert(db, "termMeta", rows, tick);
-    done += rows.length;
-  }
-  if (parsed.kanji.length > 0) {
-    const rows: KanjiRecord[] = parsed.kanji.map((r) => ({
-      ...r,
-      dict: dictId,
-    }));
-    await bulkInsert(db, "kanji", rows, tick);
-    done += rows.length;
-  }
-  if (parsed.kanjiMeta.length > 0) {
-    const rows: KanjiMetaRecord[] = parsed.kanjiMeta.map((r) => ({
-      ...r,
-      dict: dictId,
-    }));
-    await bulkInsert(db, "kanjiMeta", rows, tick);
-    done += rows.length;
-  }
-  if (parsed.frequency.length > 0) {
-    const rows: FrequencyRecord[] = parsed.frequency.map((r) => ({
-      ...r,
-      dict: dictId,
-    }));
-    await bulkInsert(db, "frequency", rows, tick);
-    done += rows.length;
+  // Progress is reported in milli-banks (1000 ticks per bank) so the UI
+  // bar moves smoothly within a single large bank (e.g. Jitendex term_bank
+  // of ~10k rows takes seconds; per-chunk fractional ticks keep the bar
+  // alive instead of jumping bank-to-bank).
+  const TICKS_PER_BANK = 1000;
+  const tickTotal = () => totalBanks * TICKS_PER_BANK;
+  const bankDetail = () =>
+    totalBanks > 0 ? `bank ${currentBankIndex} of ${totalBanks}` : undefined;
+
+  for await (const chunk of stream) {
+    if (chunk.kind === "index") {
+      index = chunk.index;
+      totalBanks = chunk.totalBanks;
+      onProgress?.(0, tickTotal(), "scanning");
+      continue;
+    }
+    if (chunk.kind === "bankStart") {
+      currentBankIndex = chunk.index;
+      onProgress?.(
+        banksDone * TICKS_PER_BANK,
+        tickTotal(),
+        "parsing",
+        bankDetail(),
+      );
+      continue;
+    }
+    if (chunk.kind === "bankDone") {
+      banksDone++;
+      onProgress?.(
+        banksDone * TICKS_PER_BANK,
+        tickTotal(),
+        "parsing",
+        bankDetail(),
+      );
+      continue;
+    }
+    await bulkInsert(
+      db,
+      chunk.kind,
+      chunk.rows,
+      dictId,
+      (chunkDone, chunkTotal) => {
+        const frac =
+          chunkTotal > 0 ? Math.floor((chunkDone / chunkTotal) * TICKS_PER_BANK) : 0;
+        onProgress?.(
+          banksDone * TICKS_PER_BANK + frac,
+          tickTotal(),
+          "inserting",
+          bankDetail(),
+        );
+      },
+    );
+    entryCount += chunk.rows.length;
   }
 
   const dict: InstalledDictionary = {
     id: dictId,
-    title: parsed.index.title || target.title,
-    revision: parsed.index.revision || "unknown",
+    title: index?.title || target.title,
+    revision: index?.revision || "unknown",
     kind: target.kind,
     priority: target.priority,
-    entryCount: totals,
+    entryCount,
     installedAt: Date.now(),
   };
   await putInstalled(db, dict);
-  onProgress?.(totals, totals);
+  onProgress?.(tickTotal(), tickTotal(), "finishing");
   return dict;
 }

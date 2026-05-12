@@ -24,12 +24,19 @@ export type WorkerRequest =
   | { id: number; type: "uninstall"; dictId: DictionaryId }
   | { id: number; type: "list" };
 
+export type InstallPhase =
+  | "scanning"
+  | "parsing"
+  | "inserting"
+  | "finishing";
+
 export type WorkerProgress = {
   id: number;
   type: "progress";
-  phase: "parse" | "insert";
   done: number;
   total: number;
+  phase?: InstallPhase;
+  detail?: string;
 };
 
 export type WorkerResponse =

@@ -17,15 +17,22 @@ export type WorkerRequest =
   | { id: number; type: "scanText"; text: string }
   | {
       id: number;
-      type: "install";
+      type: "install:start";
       target: InstallTargetMessage;
-      zip: ArrayBuffer;
+      totalBytes: number | null;
     }
+  | {
+      id: number;
+      type: "install:chunk";
+      chunk: ArrayBuffer;
+      final: boolean;
+    }
+  | { id: number; type: "install:abort" }
   | { id: number; type: "uninstall"; dictId: DictionaryId }
   | { id: number; type: "list" };
 
 export type InstallPhase =
-  | "scanning"
+  | "extracting"
   | "parsing"
   | "inserting"
   | "finishing";
@@ -33,9 +40,7 @@ export type InstallPhase =
 export type WorkerProgress = {
   id: number;
   type: "progress";
-  done: number;
-  total: number;
-  phase?: InstallPhase;
+  phase: InstallPhase;
   detail?: string;
 };
 

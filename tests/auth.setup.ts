@@ -68,6 +68,14 @@ setup("authenticate via /setup (first-login flow)", async ({ page, baseURL }) =>
       throw new Error(`create-user failed: ${body}`);
     }
   }
+
+  // Sync the library from the fixture directory copied by global-setup so
+  // reader / OCR / progress flows have data on every run. Admin-gated.
+  const scanRes = await adminContext.post("/api/library/scan");
+  expect(
+    scanRes.ok(),
+    `library scan failed: ${await scanRes.text()}`,
+  ).toBeTruthy();
   await adminContext.dispose();
 
   // Capture regular-user storage state.

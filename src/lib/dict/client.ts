@@ -1,17 +1,22 @@
 "use client";
 
 import type {
+  InstallPhase,
+  InstallTargetMessage,
   WorkerMessage,
   WorkerProgress,
   WorkerRequest,
   WorkerResponse,
-  InstallTargetMessage,
 } from "./protocol";
 import type { InstalledDictionary, ScanResult } from "./types";
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown
   ? Omit<T, K>
   : never;
+
+export type InstallEvent =
+  | { kind: "download"; sent: number; total: number | null }
+  | { kind: "work"; phase: InstallPhase; detail: string | null };
 
 interface PendingEntry<T> {
   resolve: (value: T) => void;
@@ -20,6 +25,15 @@ interface PendingEntry<T> {
   signal?: AbortSignal;
   signalListener?: () => void;
 }
+
+// Subdivide reader chunks before postMessage so the worker's `unzip.push`
+// increments are small — keeps `onfile` callbacks firing promptly during a
+// single fetch chunk (Next/Docker may buffer the whole zip into one read).
+const INSTALL_PIECE_SIZE = 256 * 1024;
+// Yield to the event loop after this many pieces, so React renders the
+// growing download bar. No backpressure — worker queues pieces and processes
+// at its own pace.
+const PIECES_PER_YIELD = 8;
 
 export class DictClient {
   private worker: Worker | null = null;
@@ -128,13 +142,132 @@ export class DictClient {
 
   install(
     target: InstallTargetMessage,
-    zip: ArrayBuffer,
-    onProgress?: (p: WorkerProgress) => void,
+    response: Response,
+    onEvent?: (e: InstallEvent) => void,
+    signal?: AbortSignal,
   ): Promise<InstalledDictionary> {
-    return this.send<InstalledDictionary>(
-      { type: "install", target, zip },
-      { onProgress, transfer: [zip] },
-    );
+    return new Promise<InstalledDictionary>((resolve, reject) => {
+      const id = this.nextId++;
+      const w = this.ensure();
+
+      let totalSent = 0;
+
+      const entry: PendingEntry<InstalledDictionary> = {
+        resolve,
+        reject,
+        onProgress: (p) => {
+          onEvent?.({
+            kind: "work",
+            phase: p.phase,
+            detail: p.detail ?? null,
+          });
+        },
+        signal,
+      };
+
+      const abortFn = () => {
+        try {
+          w.postMessage({ id, type: "install:abort" } satisfies WorkerRequest);
+        } catch {
+          // worker may already be gone
+        }
+        const e = this.pending.get(id);
+        if (e) this.pending.delete(id);
+        reject(new DOMException("Aborted", "AbortError"));
+      };
+
+      if (signal) {
+        if (signal.aborted) {
+          reject(new DOMException("Aborted", "AbortError"));
+          return;
+        }
+        entry.signalListener = abortFn;
+        signal.addEventListener("abort", abortFn, { once: true });
+      }
+
+      this.pending.set(id, entry as PendingEntry<unknown>);
+
+      const totalHeader = response.headers.get("content-length");
+      const totalBytes = totalHeader ? Number(totalHeader) : null;
+      w.postMessage({
+        id,
+        type: "install:start",
+        target,
+        totalBytes,
+      } satisfies WorkerRequest);
+
+      onEvent?.({ kind: "download", sent: 0, total: totalBytes });
+
+      const body = response.body;
+      if (!body) {
+        reject(new Error("No response body"));
+        return;
+      }
+
+      void (async () => {
+        const reader = body.getReader();
+        let piecesSinceYield = 0;
+        try {
+          while (true) {
+            if (signal?.aborted) return;
+            const { value, done } = await reader.read();
+            if (done) {
+              const empty = new ArrayBuffer(0);
+              w.postMessage(
+                {
+                  id,
+                  type: "install:chunk",
+                  chunk: empty,
+                  final: true,
+                } satisfies WorkerRequest,
+                [empty],
+              );
+              return;
+            }
+            if (!value || value.byteLength === 0) continue;
+            for (
+              let off = 0;
+              off < value.byteLength;
+              off += INSTALL_PIECE_SIZE
+            ) {
+              if (signal?.aborted) return;
+              const end = Math.min(
+                off + INSTALL_PIECE_SIZE,
+                value.byteLength,
+              );
+              const piece = value.subarray(off, end);
+              const ab = piece.slice().buffer;
+              totalSent += ab.byteLength;
+              w.postMessage(
+                {
+                  id,
+                  type: "install:chunk",
+                  chunk: ab,
+                  final: false,
+                } satisfies WorkerRequest,
+                [ab],
+              );
+              onEvent?.({
+                kind: "download",
+                sent: totalSent,
+                total: totalBytes,
+              });
+              piecesSinceYield++;
+              if (piecesSinceYield >= PIECES_PER_YIELD) {
+                piecesSinceYield = 0;
+                await new Promise<void>((r) => setTimeout(r, 0));
+              }
+            }
+          }
+        } catch (e) {
+          const pending = this.pending.get(id);
+          if (pending) {
+            this.pending.delete(id);
+            pending.reject(e instanceof Error ? e : new Error(String(e)));
+          }
+        }
+      })();
+    });
   }
 
   uninstall(dictId: string): Promise<void> {

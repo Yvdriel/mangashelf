@@ -5,22 +5,17 @@ import { CATALOG, type CatalogEntry } from "@/lib/dict/catalog";
 import { getDictClient } from "@/lib/dict/client";
 import type { InstalledDictionary } from "@/lib/dict/types";
 
-type UnifiedPhase =
-  | "downloading"
-  | "scanning"
-  | "parsing"
-  | "inserting"
-  | "finishing";
+type WorkPhase = "extracting" | "parsing" | "inserting" | "finishing";
+
+type WorkingState = {
+  kind: "working";
+  download: { sent: number; total: number | null };
+  work: { phase: WorkPhase; detail: string | null } | null;
+};
 
 type RowState =
   | { kind: "idle" }
-  | {
-      kind: "working";
-      phase: UnifiedPhase;
-      done: number;
-      total: number | null;
-      detail: string | null;
-    }
+  | WorkingState
   | { kind: "uninstalling" }
   | { kind: "error"; message: string };
 
@@ -46,32 +41,36 @@ export function DictSettings() {
     setRowState((prev) => ({ ...prev, [id]: s }));
   }, []);
 
+  const updateWorking = useCallback(
+    (id: string, patch: (w: WorkingState) => WorkingState) => {
+      setRowState((prev) => {
+        const cur = prev[id];
+        if (!cur || cur.kind !== "working") return prev;
+        return { ...prev, [id]: patch(cur) };
+      });
+    },
+    [],
+  );
+
   const handleInstall = useCallback(
     async (entry: CatalogEntry) => {
       setRow(entry.id, {
         kind: "working",
-        phase: "downloading",
-        done: 0,
-        total: null,
-        detail: null,
+        download: { sent: 0, total: null },
+        work: null,
       });
       try {
-        const buf = await downloadDict(entry.id, (received, total) =>
-          setRow(entry.id, {
-            kind: "working",
-            phase: "downloading",
-            done: received,
-            total,
-            detail: null,
-          }),
-        );
-        setRow(entry.id, {
-          kind: "working",
-          phase: "scanning",
-          done: 0,
-          total: null,
-          detail: null,
+        const res = await fetch("/api/dict/install", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: entry.id }),
         });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          throw new Error(data.error || `Install failed (${res.status})`);
+        }
         await getDictClient().install(
           {
             id: entry.id,
@@ -79,19 +78,21 @@ export function DictSettings() {
             kind: entry.kind,
             priority: entry.priority,
           },
-          buf,
-          (p) => {
-            setRow(entry.id, {
-              kind: "working",
-              phase: p.phase ?? "scanning",
-              done: p.done,
-              total: p.total > 0 ? p.total : null,
-              detail: p.detail ?? null,
-            });
+          res,
+          (ev) => {
+            if (ev.kind === "download") {
+              updateWorking(entry.id, (w) => ({
+                ...w,
+                download: { sent: ev.sent, total: ev.total },
+              }));
+            } else {
+              updateWorking(entry.id, (w) => ({
+                ...w,
+                work: { phase: ev.phase, detail: ev.detail },
+              }));
+            }
           },
         );
-        // `buf` is transferred to the worker on postMessage, so the local
-        // reference is already detached. The closure holds nothing else.
         setRow(entry.id, { kind: "idle" });
         await refresh();
       } catch (e) {
@@ -101,7 +102,7 @@ export function DictSettings() {
         });
       }
     },
-    [refresh, setRow],
+    [refresh, setRow, updateWorking],
   );
 
   const handleUninstall = useCallback(
@@ -200,10 +201,8 @@ export function DictSettings() {
                   )}
                   {state.kind === "working" && (
                     <WorkProgress
-                      phase={state.phase}
-                      done={state.done}
-                      total={state.total}
-                      detail={state.detail}
+                      download={state.download}
+                      work={state.work}
                     />
                   )}
                   {state.kind === "uninstalling" && (
@@ -233,32 +232,43 @@ export function DictSettings() {
   );
 }
 
-const PHASE_LABEL: Record<UnifiedPhase, string> = {
-  downloading: "Downloading",
-  scanning: "Scanning archive",
+const PHASE_LABEL: Record<WorkPhase, string> = {
+  extracting: "Extracting",
   parsing: "Parsing",
   inserting: "Indexing",
   finishing: "Finishing",
 };
 
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
 function WorkProgress({
-  phase,
-  done,
-  total,
-  detail,
+  download,
+  work,
 }: {
-  phase: UnifiedPhase;
-  done: number;
-  total: number | null;
-  detail: string | null;
+  download: { sent: number; total: number | null };
+  work: { phase: WorkPhase; detail: string | null } | null;
 }) {
+  const { sent, total } = download;
   const pct =
-    total !== null && total > 0 ? Math.min(100, (done / total) * 100) : null;
-  const base = PHASE_LABEL[phase];
-  const label = pct === null ? base : `${base} ${pct.toFixed(0)}%`;
+    total !== null && total > 0 ? Math.min(100, (sent / total) * 100) : null;
+  const complete = total !== null && sent >= total && total > 0;
+  const downloadLabel = complete
+    ? `Downloaded ${formatBytes(total)}`
+    : total !== null && total > 0
+      ? `Downloading ${pct?.toFixed(0)}%`
+      : `Downloading…`;
+  const bytesLine =
+    total !== null && total > 0
+      ? `${formatBytes(sent)} / ${formatBytes(total)}`
+      : `${formatBytes(sent)} received`;
+
   return (
-    <div className="text-right w-40">
-      <p className="text-xs text-surface-200">{label}</p>
+    <div className="text-right w-72">
+      <p className="text-xs text-surface-200">{downloadLabel}</p>
       <div
         className="mt-1 h-1 w-full overflow-hidden rounded-full bg-surface-600"
         aria-hidden="true"
@@ -270,47 +280,27 @@ function WorkProgress({
           style={pct === null ? undefined : { width: `${pct}%` }}
         />
       </div>
-      {detail && (
-        <p className="mt-0.5 text-[10px] text-surface-400 truncate">{detail}</p>
+      <p className="mt-0.5 text-[10px] text-surface-300 tabular-nums">
+        {bytesLine}
+      </p>
+      {work && (
+        <div className="mt-2 border-t border-surface-600/60 pt-2">
+          <p className="text-[11px] font-medium text-surface-100">
+            {PHASE_LABEL[work.phase]}
+          </p>
+          <div
+            className="mt-1 h-0.5 w-full overflow-hidden rounded-full bg-surface-600"
+            aria-hidden="true"
+          >
+            <div className="h-full w-1/3 animate-pulse bg-accent-300" />
+          </div>
+          {work.detail && (
+            <p className="mt-1 text-[10px] text-surface-400 break-words leading-tight">
+              {work.detail}
+            </p>
+          )}
+        </div>
       )}
     </div>
   );
 }
-
-// Streams the install proxy response into a Blob, then converts to a single
-// ArrayBuffer once. Blob storage is off-heap on WebKit (helps iOS Safari /
-// PWA memory pressure) and the ArrayBuffer is later transferred to the
-// dict worker so this closure releases its reference on postMessage.
-async function downloadDict(
-  id: string,
-  onProgress: (received: number, total: number | null) => void,
-): Promise<ArrayBuffer> {
-  const res = await fetch("/api/dict/install", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id }),
-  });
-  if (!res.ok) {
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(data.error || `Install failed (${res.status})`);
-  }
-  const totalHeader = res.headers.get("content-length");
-  const total = totalHeader ? Number(totalHeader) : null;
-  const reader = res.body?.getReader();
-  if (!reader) throw new Error("No response body");
-  const parts: BlobPart[] = [];
-  let received = 0;
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    if (value) {
-      parts.push(value);
-      received += value.byteLength;
-      onProgress(received, total);
-    }
-  }
-  const blob = new Blob(parts);
-  parts.length = 0;
-  return await blob.arrayBuffer();
-}
-

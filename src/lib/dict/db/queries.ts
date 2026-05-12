@@ -134,23 +134,58 @@ export async function bulkInsert<S extends "terms" | "termMeta" | "kanji" | "kan
 export async function deleteDictionary(
   db: IDBPDatabase<DictDB>,
   dictId: string,
+  onProgress?: (store: string, deleted: number) => void,
 ): Promise<void> {
   await db.delete("dictionaries", dictId);
-  for (const store of [
-    "terms",
-    "termMeta",
-    "kanji",
-    "kanjiMeta",
-    "frequency",
-  ] as const) {
-    const tx = db.transaction(store, "readwrite");
+
+  // Fast path: stores with a `dict-X` compound index — range-scan that index
+  // for only this dict's keys, then issue all deletes inside one txn.
+  // Replaces a 250k-row full-store cursor scan (minutes) with one index
+  // getAllKeys + pipelined deletes (seconds).
+  const range = IDBKeyRange.bound([dictId, ""], [dictId, "￿￿￿"]);
+  {
+    const tx = db.transaction("terms", "readwrite");
+    const keys = await tx.store.index("dict-expression").getAllKeys(range);
+    for (const key of keys) void tx.store.delete(key);
+    await tx.done;
+    onProgress?.("terms", keys.length);
+  }
+  {
+    const tx = db.transaction("termMeta", "readwrite");
+    const keys = await tx.store.index("dict-expression").getAllKeys(range);
+    for (const key of keys) void tx.store.delete(key);
+    await tx.done;
+    onProgress?.("termMeta", keys.length);
+  }
+  {
+    const tx = db.transaction("kanji", "readwrite");
+    const keys = await tx.store.index("dict-character").getAllKeys(range);
+    for (const key of keys) void tx.store.delete(key);
+    await tx.done;
+    onProgress?.("kanji", keys.length);
+  }
+  {
+    const tx = db.transaction("frequency", "readwrite");
+    const keys = await tx.store.index("dict-expression").getAllKeys(range);
+    for (const key of keys) void tx.store.delete(key);
+    await tx.done;
+    onProgress?.("frequency", keys.length);
+  }
+
+  // kanjiMeta lacks a dict index. Fall back to a cursor scan, but it's a
+  // small store (~10k rows max for typical Japanese dictionaries).
+  {
+    const tx = db.transaction("kanjiMeta", "readwrite");
     let cursor = await tx.store.openCursor();
+    let deleted = 0;
     while (cursor) {
       if ((cursor.value as { dict: string }).dict === dictId) {
         await cursor.delete();
+        deleted++;
       }
       cursor = await cursor.continue();
     }
     await tx.done;
+    onProgress?.("kanjiMeta", deleted);
   }
 }

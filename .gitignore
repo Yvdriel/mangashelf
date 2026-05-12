@@ -44,6 +44,12 @@ next-env.d.ts
 # database
 /data/
 
+# e2e
+/.test-data/
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
 # media
 /media
 /downloads

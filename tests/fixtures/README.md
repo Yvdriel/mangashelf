@@ -70,11 +70,13 @@ A single volume is enough to spec:
 - `/api/anki/capture` page-region crop
 - `PUT /api/progress/[mangaId]/[volumeId]` resume + `isCompleted` flip
 
-10 pages is plenty. Generate the `.mokuro` with the upstream `mokuro`
-CLI against the same 10 pages so coordinates match.
+20 pages is enough — OCR blocks first appear around page 13, so a
+10-page slice misses the OCR overlay surface entirely. Generate the
+`.mokuro` with the upstream `mokuro` CLI against the same pages so
+coordinates match.
 
 `Yotsuba to! [anilist-30104]/` already exists as the canonical seed slot.
-Drop `v01/001.jpg…010.jpg` + `v01.mokuro` into it.
+Drop `v01/001.jpg…020.jpg` + `v01.mokuro` into it.
 
 ## Why this lives in the repo
 

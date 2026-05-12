@@ -7,6 +7,11 @@ import {
 } from "./seed/credentials";
 
 setup("authenticate via /setup (first-login flow)", async ({ page, baseURL }) => {
+  // Cold next-dev boot has to compile /setup, /login, /, the admin API,
+  // the manager API, and the auth endpoints during this test. 30s is not
+  // enough on a clean .test-data directory.
+  setup.setTimeout(180_000);
+
   const origin = baseURL ?? "http://localhost:3100";
 
   // Probe whether the running server still has users provisioned. global-setup

@@ -76,6 +76,16 @@ setup("authenticate via /setup (first-login flow)", async ({ page, baseURL }) =>
     scanRes.ok(),
     `library scan failed: ${await scanRes.text()}`,
   ).toBeTruthy();
+
+  // Register the fixture in the manager domain so /api/covers/<anilistId>
+  // resolves (the route returns null without a managedManga row, even when
+  // a cached cover is on disk). Idempotent: 409 means it's already managed.
+  const manageRes = await adminContext.post("/api/manager/manga", {
+    data: { anilistId: 30104 },
+  });
+  if (!manageRes.ok() && manageRes.status() !== 409) {
+    throw new Error(`manager add failed: ${await manageRes.text()}`);
+  }
   await adminContext.dispose();
 
   // Capture regular-user storage state.

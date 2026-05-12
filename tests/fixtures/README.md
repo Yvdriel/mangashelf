@@ -11,6 +11,8 @@ committed beyond the directory stubs — supply your own pages.
 
 ```
 tests/fixtures/manga/
+  .covers/
+    <anilistId>.jpg       # pre-warmed AniList cover cache (optional)
   <Title> [anilist-<id>]/
     v01/
       001.jpg
@@ -22,6 +24,17 @@ tests/fixtures/manga/
       …
     v02.mokuro
 ```
+
+`.covers/<anilistId>.jpg` is read by `src/lib/cover-cache.ts` whenever
+the matching `managedManga` row asks for its cover. Pre-warming it
+avoids an AniList CDN fetch on every test run.
+
+`.thumbnails/` and `_ocr/` are **not** fixtured:
+
+- `.thumbnails/` is regenerated on demand by `src/lib/thumbnails.ts`
+  via `sharp`; cold-first-hit cost is trivial.
+- `_ocr/` is a mokuro CLI intermediate (per-page JSON); the app only
+  reads the merged `vXX.mokuro` file. Dead weight in the repo.
 
 - Folder name must end with `[anilist-<numericId>]` so the scanner can
   link it to managed-manga records (see `CLAUDE.md`).
@@ -77,6 +90,21 @@ coordinates match.
 
 `Yotsuba to! [anilist-30104]/` already exists as the canonical seed slot.
 Drop `v01/001.jpg…020.jpg` + `v01.mokuro` into it.
+
+## Manager-side seeding
+
+`tests/auth.setup.ts` does two seed calls after admin auth:
+
+1. `POST /api/library/scan` — picks up the volume folders.
+2. `POST /api/manager/manga {anilistId: 30104}` — registers the
+   fixture in the manager domain so `/api/covers/<anilistId>` resolves.
+   Without this row the cover route short-circuits to `null`, regardless
+   of cache state. AniList GraphQL is hit once for metadata; the cover
+   binary is served from `.covers/30104.jpg` if present.
+
+Adding a second fixture title means: drop the volume folder + `.mokuro`,
+drop a cover JPG in `.covers/`, and add a matching manager-seed line in
+`auth.setup.ts`.
 
 ## Why this lives in the repo
 

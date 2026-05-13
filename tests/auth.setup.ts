@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { test as setup, expect, request } from "@playwright/test";
 import {
   TEST_ADMIN,
@@ -11,6 +13,24 @@ setup("authenticate via /setup (first-login flow)", async ({ page, baseURL }) =>
   // the manager API, and the auth endpoints during this test. 30s is not
   // enough on a clean .test-data directory.
   setup.setTimeout(180_000);
+
+  // Ensure the manga fixture is in .test-data/manga. tests/global-setup.ts
+  // already copies it, but the MCP playwright-test planner runs Playwright
+  // through its own lifecycle that does NOT honor `globalSetup`. Doing the
+  // copy here too means the fixture is guaranteed whenever the `setup`
+  // project runs (which every dependent project — chromium, planner, spec
+  // runs — pulls in via `dependencies: ["setup"]`). Idempotent: cpSync
+  // overwrites with the same bytes when the dir is already populated.
+  const root = path.resolve(__dirname, "..");
+  const fixtureMangaDir = path.join(root, "tests", "fixtures", "manga");
+  const testMangaDir = path.join(root, ".test-data", "manga");
+  fs.mkdirSync(testMangaDir, { recursive: true });
+  if (fs.existsSync(fixtureMangaDir)) {
+    fs.cpSync(fixtureMangaDir, testMangaDir, {
+      recursive: true,
+      filter: (src) => path.basename(src) !== ".gitkeep",
+    });
+  }
 
   const origin = baseURL ?? "http://localhost:3100";
 

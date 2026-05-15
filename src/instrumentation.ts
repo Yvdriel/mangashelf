@@ -1,6 +1,12 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     await import("./db/migrate");
+
+    if (process.env.E2E === "1") {
+      console.log("[MangaShelf] E2E mode: skipping scan + background tasks");
+      return;
+    }
+
     const { syncLibrary } = await import("./lib/scanner");
     try {
       const result = syncLibrary();

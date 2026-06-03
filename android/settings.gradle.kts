@@ -18,3 +18,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "MangaShelfReader"
 include(":app")
+// Dictionary pillar (CH.2) — pure-Kotlin/JVM logic modules, fully unit-testable
+// off-device. :dict:engine = deinflector + forward conjugator; :dict:romaji = wanakana.
+include(":dict:engine")
+include(":dict:romaji")

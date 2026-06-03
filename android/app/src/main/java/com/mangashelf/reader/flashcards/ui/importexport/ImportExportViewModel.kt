@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mangashelf.reader.flashcards.data.CollectionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -59,6 +60,8 @@ class ImportExportViewModel @Inject constructor(
             _status.value = IoStatus.Working(working)
             _status.value = try {
                 op()
+            } catch (c: CancellationException) {
+                throw c // let coroutine cancellation propagate (structured concurrency)
             } catch (e: Exception) {
                 IoStatus.Error(e.message ?: "Operation failed")
             }

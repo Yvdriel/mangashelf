@@ -5,16 +5,19 @@ import androidx.lifecycle.viewModelScope
 import com.mangashelf.reader.flashcards.data.CollectionRepository
 import com.mangashelf.reader.flashcards.data.model.SchedulerSettings
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
  * F.5 scheduler settings. Loads the single global [SchedulerSettings] preset from the backend,
- * edits it locally via [copy], and persists it on [save]. [saved] flips true briefly after a
- * successful write so the UI can surface a confirmation.
+ * edits it locally via [copy], and persists it on [save]. A one-shot [savedEvents] emission after
+ * a successful write lets the UI surface a transient confirmation.
  */
 @HiltViewModel
 class SchedulerSettingsViewModel @Inject constructor(
@@ -24,9 +27,9 @@ class SchedulerSettingsViewModel @Inject constructor(
     private val _settings = MutableStateFlow(SchedulerSettings.DEFAULT)
     val settings: StateFlow<SchedulerSettings> = _settings.asStateFlow()
 
-    /** Flips true briefly after a successful save, then back to false. */
-    private val _saved = MutableStateFlow(false)
-    val saved: StateFlow<Boolean> = _saved.asStateFlow()
+    /** Emits once per successful save (one-shot event, not a retained state). */
+    private val _savedEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val savedEvents: SharedFlow<Unit> = _savedEvents.asSharedFlow()
 
     init {
         viewModelScope.launch {
@@ -57,8 +60,7 @@ class SchedulerSettingsViewModel @Inject constructor(
     fun save() {
         viewModelScope.launch {
             repo.updateSchedulerSettings(_settings.value)
-            _saved.value = true
-            _saved.value = false
+            _savedEvents.tryEmit(Unit)
         }
     }
 }

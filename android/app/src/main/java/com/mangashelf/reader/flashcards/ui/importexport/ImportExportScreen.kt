@@ -15,12 +15,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mudita.mmd.components.buttons.ButtonMMD
 import com.mudita.mmd.components.text.TextMMD
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.File
 
 /**
@@ -80,24 +83,26 @@ fun ImportExportRoute(
     viewModel: ImportExportViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val status by viewModel.status.collectAsState()
 
-    val colpkgOut = remember(context) {
-        File(context.getExternalFilesDir(null), "mangashelf-export.colpkg").absolutePath
-    }
-    val apkgOut = remember(context) {
-        File(context.getExternalFilesDir(null), "mangashelf-export.apkg").absolutePath
-    }
+    // External files dir can be null when external storage is unavailable; fall back to app-private.
+    val exportDir = remember(context) { context.getExternalFilesDir(null) ?: context.filesDir }
+    val colpkgOut = remember(exportDir) { File(exportDir, "mangashelf-export.colpkg").absolutePath }
+    val apkgOut = remember(exportDir) { File(exportDir, "mangashelf-export.apkg").absolutePath }
 
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri: Uri? ->
         if (uri != null) {
-            val isColpkg = displayName(context, uri).endsWith(".colpkg")
-            val tempName = if (isColpkg) "import.colpkg" else "import.apkg"
-            val tempPath = File(context.cacheDir, tempName).absolutePath
-            copyToFile(context, uri, tempPath)
-            viewModel.importFile(tempPath, isColpkg = isColpkg)
+            // Copy the picked content off the main thread — .colpkg files can be large.
+            scope.launch(Dispatchers.IO) {
+                val isColpkg = displayName(context, uri).endsWith(".colpkg")
+                val tempName = if (isColpkg) "import.colpkg" else "import.apkg"
+                val tempPath = File(context.cacheDir, tempName).absolutePath
+                copyToFile(context, uri, tempPath)
+                viewModel.importFile(tempPath, isColpkg = isColpkg)
+            }
         }
     }
 
@@ -121,7 +126,7 @@ private fun displayName(context: Context, uri: Uri): String {
     return uri.lastPathSegment ?: ""
 }
 
-/** Copies the content stream behind [uri] into [destPath] (a small package; ok on the caller thread). */
+/** Copies the content stream behind [uri] into [destPath]. Call off the main thread (blocking I/O). */
 private fun copyToFile(context: Context, uri: Uri, destPath: String) {
     context.contentResolver.openInputStream(uri)?.use { input ->
         File(destPath).outputStream().use { output ->

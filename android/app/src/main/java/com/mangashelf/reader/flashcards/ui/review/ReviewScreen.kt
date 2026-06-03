@@ -78,11 +78,13 @@ fun ReviewScreen(
     onUndo: () -> Unit = {},
 ) {
     Column(Modifier.fillMaxSize()) {
-        if (undoLabel.isNotBlank()) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.End,
-            ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ButtonMMD(onClick = onBack) { TextMMD("Back") }
+            if (undoLabel.isNotBlank()) {
                 ButtonMMD(onClick = onUndo) { TextMMD("Undo") }
             }
         }
@@ -199,10 +201,16 @@ private fun Rating.displayName(): String = when (this) {
 }
 
 private val IMG_SRC = Regex("src=\"([^\"]+)\"")
+private val BR_TAG = Regex("(?i)<br\\s*/?>")
 private val ANY_TAG = Regex("<[^>]*>")
 
 private fun imageSrc(imageHtml: String): String? =
     IMG_SRC.find(imageHtml)?.groupValues?.get(1)?.takeIf { it.isNotBlank() }
 
-/** Sentence/Source fields may carry inline markup (e.g. `<br>`); show them as plain text. */
-private fun String.stripTags(): String = replace(ANY_TAG, "").trim()
+/**
+ * Sentence/Source fields may carry inline markup; show them as plain text. `addMiningNote()`
+ * stores newlines as `<br>`, so map those back to line breaks before dropping other tags
+ * (otherwise multi-line sentences collapse onto one line).
+ */
+private fun String.stripTags(): String =
+    replace(BR_TAG, "\n").replace(ANY_TAG, "").trim()

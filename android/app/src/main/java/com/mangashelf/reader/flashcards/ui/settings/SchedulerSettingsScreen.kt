@@ -13,11 +13,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
+import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mangashelf.reader.flashcards.data.model.SchedulerSettings
@@ -32,6 +35,12 @@ fun SchedulerSettingsRoute(
     viewModel: SchedulerSettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsState()
+    val context = LocalContext.current
+    LaunchedEffect(viewModel) {
+        viewModel.savedEvents.collect {
+            Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
+        }
+    }
     SchedulerSettingsScreen(
         settings = settings,
         onRollover = viewModel::setRollover,
@@ -67,6 +76,11 @@ fun SchedulerSettingsScreen(
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
+            ButtonMMD(onClick = onBack) { TextMMD("Back") }
+        }
+        Spacer(Modifier.height(12.dp))
+
         IntSliderRow(
             label = "Next day starts at: ${settings.rolloverHour}:00",
             value = settings.rolloverHour,

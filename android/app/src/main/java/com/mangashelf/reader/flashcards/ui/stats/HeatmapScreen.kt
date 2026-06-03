@@ -66,9 +66,11 @@ fun HeatmapRoute(
 }
 
 /**
- * F.6 Anki-style calendar heatmap. Columns are weeks, rows are the 7 weekday cells. Each day offset
- * (0 = today, negative = past) is placed into its week column by integer-dividing the offset by 7,
- * and colored by [bucket]. The row of week-columns scrolls horizontally. Stateless for testing.
+ * F.6 Anki-style review heatmap. Columns are 7-day buckets (each holding a contiguous run of seven
+ * day offsets via floorDiv-by-7); rows are the 7 positions within a bucket — NOT yet aligned to a
+ * real weekday (today sits at row `0 mod 7`). Each day offset (0 = today, negative = past) is
+ * colored by [bucket]; the columns scroll horizontally. Aligning rows to actual weekdays (and the
+ * rest of the e-ink calendar polish) is pooled to CH.11. Stateless for testing.
  */
 @Composable
 fun HeatmapScreen(

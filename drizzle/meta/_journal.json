@@ -64,6 +64,13 @@
       "when": 1778395416595,
       "tag": "0008_bitter_omega_sentinel",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1780512206008,
+      "tag": "0009_sour_puff_adder",
+      "breakpoints": true
     }
   ]
 }

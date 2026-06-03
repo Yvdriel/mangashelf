@@ -57,6 +57,27 @@ class AnkiBackend : Closeable {
     }
 
     /**
+     * Opens (or creates) the collection with an explicit media folder + media DB. The flashcards
+     * data layer needs this form (not the single-arg [open]): media is required for mining-note
+     * images (F.8 `addMediaFile`), which the single-arg open leaves unconfigured. Creating the
+     * media folder up front is harmless if empty.
+     */
+    fun open(collectionPath: String, mediaDir: String, mediaDbPath: String) {
+        check(backend == null) { "AnkiBackend already open; call close() first" }
+        ensureNativeLoaded()
+        val b = BackendFactory.getBackend()
+        b.openCollection(collectionPath, mediaDir, mediaDbPath)
+        backend = b
+    }
+
+    /**
+     * The open native [Backend], for the flashcards data layer (same module). Throws if not open.
+     * Exposed so [CollectionRepository] can issue the full set of typed rslib calls without this
+     * thin wrapper having to passthrough every RPC.
+     */
+    internal fun requireBackend(): Backend = requireNotNull(backend) { "AnkiBackend not open" }
+
+    /**
      * Proto round-trip: returns the deck names in the open collection. NOTE: on Anki 25.02
      * this is EMPTY for a brand-new collection (the Default deck, id 1, is not surfaced by
      * getDeckNames until a deck is actually created). Use [defaultDeckId] to prove the

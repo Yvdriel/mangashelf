@@ -111,13 +111,13 @@ ITEMS:
 RECIPE: ⛓ WF. F.2 first. F.3→F.4 serial. F.8 forks after F.2. F.5,F.6,F.7 = 3-wide leaf fan off F.3/F.1. WORKTREE MANDATORY vs CH.4/CH.6 (shared libs.versions.toml + DI + nav-host). TDD FSRS intervals (test-vector vs desktop Anki).
 RISK:   FSRS interval parity.
 ITEMS:
-- [ ] F.2  M ◈    collection bootstrap + mining note + DI  → F.3 F.8
+- [x] F.2  M ◈    collection bootstrap + mining note + DI  → F.3 F.8
 - [ ] F.3  L ◈    review screen (FSRS, 4 buttons)          → F.4 F.5 F.6
 - [ ] F.4  S ⇉    undo                                     →
 - [ ] F.5  M ⇉    scheduler settings                       →
 - [ ] F.6  M ⇉    calendar heatmap (📵 e-ink tune→CH.11)   →
 - [ ] F.7  M ⇉    import/export full history               →
-- [ ] F.8  S ⇉    card-creation (mining) API               → O.3 D3.2
+- [x] F.8  S ⇉    card-creation (mining) API               → O.3 D3.2
 
 ### CH.6 — DICT ENGINE SPINE + UI  ⛓→⇉  (pillar track, forks after CH.2; split 6a/6b if ctx tight)
 ▶ENTRY: dict.db baked + D1.1/D1.2/D1.4 (CH.2) done · 2.1 (CH.1) for Compose.

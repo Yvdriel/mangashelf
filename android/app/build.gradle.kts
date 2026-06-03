@@ -108,6 +108,9 @@ dependencies {
     implementation(libs.anki.backend)
 
     testImplementation(libs.junit)
+    // Real org.json for JVM unit tests (Android stubs throw "not mocked"); prod uses the
+    // Android-bundled org.json with the same API. Used by the MiningNotetype JSON transform test.
+    testImplementation("org.json:json:20240303")
     // Host-JVM tier: bundles librsdroid.dylib/.so + RustBackendLoader.ensureSetup().
     testImplementation(libs.anki.backend.testing)
     androidTestImplementation(libs.androidx.test.junit)

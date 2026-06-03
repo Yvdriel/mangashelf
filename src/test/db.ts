@@ -1,6 +1,9 @@
 // Shared seeding + request helpers for endpoint integration tests.
 // Import AFTER `./setup-db` has set DATABASE_URL (wired via vitest setupFiles).
+import fs from "fs";
+import path from "path";
 import { randomUUID } from "crypto";
+import sharp from "sharp";
 import { db } from "@/db";
 import {
   apiToken,
@@ -100,6 +103,45 @@ export function seedProgress(
   values: typeof readingProgress.$inferInsert,
 ): void {
   db.insert(readingProgress).values(values).run();
+}
+
+/** The per-file temp manga library root (set by setup-db.ts). */
+export function mangaDir(): string {
+  return process.env.MANGA_DIR as string;
+}
+
+/**
+ * Write `count` real (sharp-decodable) JPEG pages into
+ * `MANGA_DIR/<folderName>/<volumeFolder>/0001.jpg…`. Returns the dir.
+ */
+export async function writeVolumePages(
+  folderName: string,
+  volumeFolder: string,
+  count: number,
+): Promise<string> {
+  const dir = path.join(mangaDir(), folderName, volumeFolder);
+  fs.mkdirSync(dir, { recursive: true });
+  const jpeg = await sharp({
+    create: { width: 8, height: 8, channels: 3, background: "#fff" },
+  })
+    .jpeg()
+    .toBuffer();
+  for (let i = 1; i <= count; i++) {
+    fs.writeFileSync(path.join(dir, `${String(i).padStart(4, "0")}.jpg`), jpeg);
+  }
+  return dir;
+}
+
+/** Write a `.mokuro` sidecar at `MANGA_DIR/<folderName>/<volumeFolder>.mokuro`. */
+export function writeMokuro(
+  folderName: string,
+  volumeFolder: string,
+  data: unknown,
+): string {
+  const file = path.join(mangaDir(), folderName, `${volumeFolder}.mokuro`);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(data));
+  return file;
 }
 
 /** Build a Request carrying the seeded bearer token (override via opts.token). */

@@ -11,11 +11,15 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
-const dbPath = path.join(
-  os.tmpdir(),
-  `mangashelf-test-${process.pid}-${randomUUID()}.db`,
-);
+const stamp = `${process.pid}-${randomUUID()}`;
+const dbPath = path.join(os.tmpdir(), `mangashelf-test-${stamp}.db`);
 process.env.DATABASE_URL = dbPath;
+
+// Per-file temp manga library so cover/archive/ocr endpoints (which read
+// MANGA_DIR at module load) resolve against isolated fixtures.
+const mangaDir = path.join(os.tmpdir(), `mangashelf-test-manga-${stamp}`);
+process.env.MANGA_DIR = mangaDir;
+fs.mkdirSync(mangaDir, { recursive: true });
 
 const sqlite = new Database(dbPath);
 sqlite.pragma("journal_mode = WAL");
@@ -32,9 +36,10 @@ beforeEach(async () => {
   resetDb();
 });
 
-// Best-effort cleanup of temp DB files after the run.
+// Best-effort cleanup of temp files after the run.
 afterAll(() => {
   for (const suffix of ["", "-wal", "-shm"]) {
     fs.rmSync(dbPath + suffix, { force: true });
   }
+  fs.rmSync(mangaDir, { recursive: true, force: true });
 });

@@ -5,9 +5,14 @@ import anki.deck_config.DeckConfigsForUpdate
 import anki.deck_config.UpdateDeckConfigsMode
 import anki.decks.Deck
 import anki.notes.Note
+import anki.scheduler.CardAnswer
 import com.google.protobuf.ByteString
 import com.mangashelf.reader.di.CollectionDir
+import com.mangashelf.reader.flashcards.data.model.AnswerOption
 import com.mangashelf.reader.flashcards.data.model.DeckSummary
+import com.mangashelf.reader.flashcards.data.model.NoteFields
+import com.mangashelf.reader.flashcards.data.model.Rating
+import com.mangashelf.reader.flashcards.data.model.ReviewCard
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -115,9 +120,77 @@ class CollectionRepository @Inject constructor(
         b.addNote(note, deckId).noteId
     }
 
+    // --- F.3 review --------------------------------------------------------------
+
+    /**
+     * The next due card in [deckId] (or null if the queue is empty). Resolves the note's fields by
+     * the Mining field order and labels the four buttons with the backend's next-interval strings
+     * (`describeNextStates`, 1:1 with desktop Anki).
+     */
+    suspend fun nextCard(deckId: Long): ReviewCard? = withBackend { b ->
+        b.setCurrentDeck(deckId)
+        val queued = b.getQueuedCards(/* fetchLimit = */ 1, /* intradayLearningOnly = */ false)
+        if (queued.cardsCount == 0) return@withBackend null
+        val qc = queued.getCards(0)
+        val card = qc.card
+        val fields = b.getNote(card.noteId).fieldsList
+        val labels = b.describeNextStates(qc.states)
+        ReviewCard(
+            cardId = card.id,
+            noteId = card.noteId,
+            fields = NoteFields(
+                sentence = fields.getOrElse(0) { "" },
+                imageHtml = fields.getOrElse(1) { "" },
+                definitionHtml = fields.getOrElse(2) { "" },
+                source = fields.getOrElse(3) { "" },
+            ),
+            options = listOf(
+                AnswerOption(Rating.AGAIN, labels.getOrElse(0) { "" }),
+                AnswerOption(Rating.HARD, labels.getOrElse(1) { "" }),
+                AnswerOption(Rating.GOOD, labels.getOrElse(2) { "" }),
+                AnswerOption(Rating.EASY, labels.getOrElse(3) { "" }),
+            ),
+        )
+    }
+
+    /**
+     * Answers [cardId] with [rating] (FSRS). Reads the card's current scheduling states fresh and
+     * picks the matching next state, so callers never thread proto state through the UI.
+     */
+    suspend fun answer(cardId: Long, rating: Rating, tookMs: Int = 0): Unit = withBackend { b ->
+        val states = b.getSchedulingStates(cardId)
+        val newState = when (rating) {
+            Rating.AGAIN -> states.again
+            Rating.HARD -> states.hard
+            Rating.GOOD -> states.good
+            Rating.EASY -> states.easy
+        }
+        b.answerCard(
+            CardAnswer.newBuilder()
+                .setCardId(cardId)
+                .setCurrentState(states.current)
+                .setNewState(newState)
+                .setRating(rating.toProto())
+                .setAnsweredAtMillis(System.currentTimeMillis())
+                .setMillisecondsTaken(tookMs)
+                .build(),
+        )
+        Unit
+    }
+
+    /** Resolves an Image-field `<img src>` filename to its file in the collection media folder. */
+    fun imageFile(filename: String): File = File(File(collectionDir, MEDIA_DIR), filename)
+
     fun close() = ankiBackend.close()
 
     // --- internals -------------------------------------------------------------
+
+    private fun Rating.toProto(): CardAnswer.Rating = when (this) {
+        Rating.AGAIN -> CardAnswer.Rating.AGAIN
+        Rating.HARD -> CardAnswer.Rating.HARD
+        Rating.GOOD -> CardAnswer.Rating.GOOD
+        Rating.EASY -> CardAnswer.Rating.EASY
+    }
 
     private fun ensureDeck(b: Backend, name: String): Long {
         b.getDeckNames(/* includeFiltered = */ true, /* skipEmptyDefault = */ false)

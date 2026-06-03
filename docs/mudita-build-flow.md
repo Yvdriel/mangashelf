@@ -112,7 +112,7 @@ RECIPE: ⛓ WF. F.2 first. F.3→F.4 serial. F.8 forks after F.2. F.5,F.6,F.7 = 
 RISK:   FSRS interval parity.
 ITEMS:
 - [x] F.2  M ◈    collection bootstrap + mining note + DI  → F.3 F.8
-- [ ] F.3  L ◈    review screen (FSRS, 4 buttons)          → F.4 F.5 F.6
+- [x] F.3  L ◈    review screen (FSRS, 4 buttons)          → F.4 F.5 F.6
 - [ ] F.4  S ⇉    undo                                     →
 - [ ] F.5  M ⇉    scheduler settings                       →
 - [ ] F.6  M ⇉    calendar heatmap (📵 e-ink tune→CH.11)   →

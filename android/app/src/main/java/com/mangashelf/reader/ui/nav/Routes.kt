@@ -8,4 +8,7 @@ object Routes {
     const val READER = "reader"
     const val DOWNLOADS = "downloads"
     const val SETTINGS = "settings"
+
+    /** Flashcards review (F.3). Temporary top-level entry until the 3-section shell (D3.3). */
+    const val FLASHCARDS_REVIEW = "flashcards/review"
 }

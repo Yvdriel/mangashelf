@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.mangashelf.reader.flashcards.ui.review.ReviewRoute
 import com.mangashelf.reader.ui.downloads.DownloadsScreen
 import com.mangashelf.reader.ui.library.LibraryScreen
 import com.mangashelf.reader.ui.manga.MangaDetailScreen
@@ -39,6 +40,7 @@ fun MangaShelfNavHost(navController: NavHostController) {
                 onOpenManga = { navController.navigate(Routes.MANGA_DETAIL) },
                 onDownloads = { navController.navigate(Routes.DOWNLOADS) },
                 onSettings = { navController.navigate(Routes.SETTINGS) },
+                onFlashcards = { navController.navigate(Routes.FLASHCARDS_REVIEW) },
             )
         }
         composable(Routes.MANGA_DETAIL) {
@@ -55,6 +57,9 @@ fun MangaShelfNavHost(navController: NavHostController) {
         }
         composable(Routes.SETTINGS) {
             SettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.FLASHCARDS_REVIEW) {
+            ReviewRoute(onBack = { navController.popBackStack() })
         }
     }
 }

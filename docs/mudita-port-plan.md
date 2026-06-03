@@ -449,26 +449,39 @@ Depends only on the Android skeleton (0.3 + 2.1). No server/dictionary/reader de
 
 **F.8 — Card creation (mining) API** (S) — `CollectionRepository.addMiningNote(deckId, sentence, imageBytes, definitionHtml?, source, tags)` → store media via backend, `addNote` into chosen deck; deck-picker (default "Mining"); tag templating like web `expandTags()`. Consumed by O.3 now and the dictionary→card flow later. Deps: F.2.
 
-## Pillar — Dictionary — ⛔ GATED (do NOT implement yet)
+## Pillar — Dictionary — ✅ GATE CLEARED (designed 2026-06-02)
 
-> **GATE — explicit user instruction.** How the offline Japanese dictionary must work (matching Jisho / the iOS "Japanese" app as closely as possible) is a **large mechanic still to be discussed in a dedicated brainstorming session.** Claude is **NOT permitted to write any dictionary code or finalize a dictionary sub-plan until that session happens and its decisions are recorded here.** This pillar is a placeholder.
+> **The dictionary brainstorming session ran (2026-06-02).** Decisions are recorded below; the full
+> sub-plan (feature set, data bundle, SQLite schema, lookup architecture, reuse map, build order
+> D0–D4, verification) lives in **`docs/mudita-dictionary-plan.md`**. Dictionary code is now
+> permitted, following that plan.
 
-**Open questions for that session (from research):**
-1. **Port vs WebView-reuse** — port the TS engine (`src/lib/dict/**`) to Kotlin+SQLite (durable, recommended) vs ship the TS engine in a WebView+IndexedDB (fast prototype, eviction/persistence risk, fights e-ink).
-2. **Lookup model** — tap-to-lookup with the rule deinflector + exact-key SQLite index (lean) vs full-sentence segmentation via a morphological tokenizer (Kuromoji/Sudachi, +100 MB, lemma reconciliation).
-3. **Store** — SQLite plain B-tree indexes (recommended; FTS5 is poor for CJK) vs Room vs KV; how to store/query Yomitan structured-content glossary JSON.
-4. **Glossary rendering** — native composable renderer vs minimal HTML view for Yomitan structured content on e-ink.
-5. **Dictionary distribution** — bundle a default dict vs user-imports Yomitan zips at runtime.
-6. **Storage budget** — which dicts in scope (Jitendex + KANJIDIC; JMnedict? frequency banks?), internal non-evictable storage, hard ceiling.
-7. **Deinflection coverage** — port existing `ja-transforms.ts` as-is vs re-derive from upstream Yomitan.
-8. **Jisho / "Japanese"-app parity** — which features (radical/kanji search, example sentences, conjugation tables, pitch accent, audio) are in scope.
+**Goal:** match jisho.org and the Renzo "Japanese" app as closely as possible, offline on the Kompakt.
+**Headline:** `src/lib/dict/**` already contains ~70% of the engine (Yomitan-style deinflector,
+condition bitmask, bank parser, query/scan layer) — it ports to Kotlin near-verbatim. New code is only
+a romaji→kana front-end, a forward `conjugate()` generator, the SQLite swap, and the Compose UI.
 
-**Integration points it must satisfy** (so the gate doesn't block other pillars): expose `lookup(text): List<Entry>` and `scan(text): tokens+hits` to (a) the OCR popup pane (O.3) and (b) a standalone dictionary search screen; expose per-sense data to feed `F.8 addMiningNote` as `definitionHtml`.
+**Decisions (answering the 8 open questions):**
 
-## Integration flow (partly gated)
+| # | Question | Decision |
+|---|---|---|
+| 1 | Port vs WebView | **Port the TS engine to Kotlin + SQLite** (no JS bridge / IndexedDB-in-Chromium-128). |
+| 2 | Lookup model | **Rule deinflector only** (tap-driven). Kuromoji tokenizer deferred behind the same `scan()`. |
+| 3 | Store | **SQLite B-tree** on exact reading/surface keys; glossary = structured-content **JSON in a TEXT column**. FTS5 used **only** over English glosses + example sentences, never the JP word index. |
+| 4 | Glossary rendering | **Native Compose** recursive renderer (allowlist). HTML kept only for the F.8 Anki card-back. |
+| 5 | Distribution | **Prebake the `.db` on desktop and ship it**; keep the on-device Yomitan-zip importer for optional add-ons. |
+| 6 | Storage budget | **Max-everything (~400–700 MB)**, hard ceiling ~1 GB: Jitendex + JMnedict + KANJIDIC2 + multi-corpus freq + KRADFILE/RADKFILE + Tatoeba + JmdictFurigana + KanjiVG-all + kana asset. |
+| 7 | Deinflection coverage | **Port `ja-transforms.ts` as-is**; reuse the same tables to build the forward generator (one source of truth). |
+| 8 | Parity scope | **IN:** romaji + conjugation lookup, kana/kanji reference pages, rich entry view, examples, common compounds, conjugation tables, radical search, kanji detail w/ stroke order, **English→JP search**, frequency ranking, wildcard, `#tag` filters, name dictionary. **OUT of v1:** pitch accent (opt-in dataset later), audio, handwriting, JLPT reference, Text Reader/tokenizer. |
+
+**Integration points it satisfies:** `lookup(text)` / `scan(text)` for (a) the OCR popup pane (O.3) and
+(b) a standalone dictionary search screen; `cardBackHtml(hit, senseIndex)` to feed `F.8 addMiningNote`.
+Build phases **D3.1/D3.2** wire these up.
+
+## Integration flow (ungated 2026-06-02)
 
 - **Built now:** reader OCR overlay (O.*) → popup → `F.8` create card (image + sentence). Standalone "add card" works.
-- **Gated on Dictionary session:** the lookup pane in the OCR popup (sense → `definitionHtml`) and the standalone dictionary-search → make-card flow. These light up once the dictionary pillar exposes the integration points above.
+- **Now unblocked (Dictionary phases D1–D3):** the lookup pane in the OCR popup (sense → `cardBackHtml`, phase **D3.1**) and the standalone dictionary-search → make-card flow (**D3.2**). These light up once the Dictionary pillar exposes `lookup`/`scan`/`cardBackHtml` per the sub-plan.
 
 ## Suggested build order
 

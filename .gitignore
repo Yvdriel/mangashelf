@@ -67,3 +67,9 @@ next-env.d.ts
 /android/.idea/
 /android/*.iml
 /android/app/build/
+/android/dict/*/build/
+
+# dict bake (CH.2): raw source banks + baked output — large, never committed.
+# The bake-db TOOL source IS committed; only data + build output are ignored.
+/tools/dict-data/
+/tools/bake-db/out/

@@ -66,11 +66,19 @@ ITEMS:
 RECIPE: ⛓ D0.1‖D0.2 = 2 subagents (separate ingests). D1.1→D1.2/D1.4 fold-in (no device, no db → session stays full). TDD D1.2 wanakana-parity + D1.4 round-trip. worktree light (all tools/).
 RISK:   BURN bake-size/copy-time (maybe infeasible on 3GB eink) · wanakana-Maven parity.
 ITEMS:
-- [ ] D0.1 M ⇉    bake-db tool (run parse-bank.ts/Node)    → D0.2 D1.3
-- [ ] D0.2 M ⇉    custom ingests KRADFILE/Tatoeba/kanji_word/gloss_fts/KanjiVG → D1.3
-- [ ] D1.1 M ◈    port conditions+ja-transforms+transformer → D1.2 D1.4 D3.4
-- [?] D1.2 S ◈    wanakana wrapper + isRomaji (parity?)     → D1.3
-- [ ] D1.4 M ◈    forward conjugate() + round-trip test      → D1.6
+- [x] D0.1 M ⇉    bake-db tool (run parse-bank.ts/Node)    → D0.2 D1.3
+- [x] D0.2 M ⇉    custom ingests KRADFILE/Tatoeba/kanji_word/gloss_fts/KanjiVG → D1.3
+- [x] D1.1 M ◈    port conditions+ja-transforms+transformer → D1.2 D1.4 D3.4
+- [x] D1.2 S ◈    wanakana wrapper + isRomaji (parity CONFIRMED) → D1.3
+- [x] D1.4 M ◈    forward conjugate() + round-trip test      → D1.6
+✅ CH.2 DONE 2026-06-03 (branch MUDITA-chapter-2-dict off mudita-port; worktree-iso vs concurrent CH.3/CH.5). ■EXIT met. BAKE: reproducible via tools/bake-db/ (download.sh → bake-d01‖bake-d02 → merge; raw banks + out/ gitignored in tools/dict-data/). Sources max-everything in Yomitan format: Jitendex 430822 terms · JMnedict 667563 names · KANJIDIC2 10384 kanji · freq JPDB+BCCWJ+Innocent+Aozora 1.79M (Netflix gated→Aozora sub) · KRADFILE 54321 kanji_radical · Tanaka examples 147835 sentence/1.16M sentence_word · JmdictFurigana 234024 · KanjiVG 6702 SVG (fs tree, NOT in DB).
+  ⚔ MEASURED (real, adversarially re-verified by independent agent — exact-byte match, n=7 timing):
+   • FULL max-everything dict.db = 1,134,067,712 B (1081.5 MB) + KanjiVG 41 MB = 1122 MB → **NO-GO** (breaches ~1 GB ceiling).
+   • JMnedict-TRIM dict.db = 974,753,792 B (929.5 MB) + 41 MB = 971 MB → **GO** (fits ceiling, ~30 MB headroom).
+   • copy-time proxy on kompakt28 (arm64 API28 emulator, host-SSD — NOT real hardware): on-device cp median trim 5.08s / full 5.58s; ×4 conservative device est ≈ 20–22s ≪ 60s first-run bar. Size, not copy-time, is the constraint.
+   • VERDICT: ship TRIM as dict.db; JMnedict (proper names, least essential for manga) → optional Yomitan-importer add-on (D3.4).
+  PORTS (pure-JVM, TDD, 29 tests 0-fail): :dict:engine — Cond+LanguageTransformer (9) + Conjugator round-trip (12); :dict:romaji — wanakana wrapper (8). wanakana dev.esnault.wanakana:wanakana-core:1.1.1 parity CONFIRMED (shi/si·tsu/tu·ji/zi·sokuon·n) → no trie fallback.
+  CARRY-FORWARD CH.6 D1.3: dict.db (~930 MB trim) → Room createFromAsset (~20s est first-run copy); gloss_fts = regular fts5(term_id UNINDEXED, gloss_en), query MATCH→term_id→join terms (the Android platform-tools sqlite3 CLI lacks FTS5 — use the app/better-sqlite3); KanjiVG ships as fs asset tree out/kanjivg/<2hex>/<5hex>.svg (NOT in DB); engine modules pure kotlin-jvm 1.9.22 (no Android dep), included in settings.gradle.kts as :dict:engine/:dict:romaji.
 
 ### CH.3 — SERVER API SURFACE  ⛓→⇉
 ▶ENTRY: existing Drizzle schema.

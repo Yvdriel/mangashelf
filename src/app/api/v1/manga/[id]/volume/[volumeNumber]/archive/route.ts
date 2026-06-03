@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionFromRequest } from "@/lib/api-auth";
 import { buildVolumeCbz } from "@/lib/cbz";
+import { ifNoneMatchSatisfied } from "@/lib/http";
 
 export async function GET(
   request: Request,
@@ -28,21 +29,31 @@ export async function GET(
 
   const { bytes, etag, filename } = result;
 
-  if (request.headers.get("if-none-match") === etag) {
+  if (ifNoneMatchSatisfied(request.headers.get("if-none-match"), etag)) {
     return new NextResponse(null, {
       status: 304,
       headers: { ETag: etag, "Cache-Control": "private" },
     });
   }
 
-  const body = new Uint8Array(bytes.length);
-  body.set(bytes);
-  return new NextResponse(body, {
+  // Keep the header well-formed: strip quotes/control chars for the ASCII
+  // fallback, and carry the real (possibly non-ASCII) title via filename*.
+  const asciiName =
+    filename.replace(/["\\\r\n]/g, "").replace(/[^\x20-\x7e]/g, "_") ||
+    "volume.cbz";
+  const disposition = `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(
+    filename,
+  )}`;
+
+  // fflate types its output as Uint8Array<ArrayBufferLike>; it is ArrayBuffer-
+  // backed at runtime, so this is a valid copy-free BodyInit. The cast only
+  // bridges the over-narrow lib typing — no allocation, unlike copying the buffer.
+  return new NextResponse(bytes as unknown as BodyInit, {
     status: 200,
     headers: {
       "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-      "Content-Length": body.length.toString(),
+      "Content-Disposition": disposition,
+      "Content-Length": bytes.byteLength.toString(),
       ETag: etag,
       "Cache-Control": "private",
     },

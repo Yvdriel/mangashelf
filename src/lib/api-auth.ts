@@ -35,8 +35,9 @@ export function tokenPrefix(plain: string): string {
 function parseBearer(req: Request): string | null {
   const header = req.headers.get("authorization");
   if (!header) return null;
-  const [scheme, value] = header.split(" ");
-  if (scheme !== "Bearer" || !value?.startsWith(TOKEN_PREFIX)) return null;
+  // HTTP auth schemes are case-insensitive; tolerate extra whitespace.
+  const value = /^Bearer\s+(\S+)\s*$/i.exec(header)?.[1];
+  if (!value?.startsWith(TOKEN_PREFIX)) return null;
   return value;
 }
 

@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { manga } from "@/db/schema";
 import { getSessionFromRequest } from "@/lib/api-auth";
 import { getThumbnail } from "@/lib/thumbnails";
+import { ifNoneMatchSatisfied } from "@/lib/http";
 
 export async function GET(
   request: Request,
@@ -52,7 +53,7 @@ export async function GET(
 
   const etag = `"cover-${mangaId}-${size}-${mtimeMs}"`;
 
-  if (request.headers.get("if-none-match") === etag) {
+  if (ifNoneMatchSatisfied(request.headers.get("if-none-match"), etag)) {
     return new NextResponse(null, {
       status: 304,
       headers: {

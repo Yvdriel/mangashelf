@@ -203,4 +203,47 @@ describe("POST /api/v1/progress/batch", () => {
     const json = await res.json();
     expect(json.error).toBe("Unauthorized");
   });
+
+  it("(f) returns 400 on invalid JSON", async () => {
+    const userId = seedUser();
+    seedToken(userId);
+
+    const res = await POST(
+      authedRequest("http://localhost/api/v1/progress/batch", {
+        method: "POST",
+        body: "{not valid json",
+      }),
+    );
+
+    expect(res.status).toBe(400);
+  });
+
+  it("(g) rejects malformed entries as invalid without throwing", async () => {
+    const userId = seedUser();
+    seedToken(userId);
+    const m = seedManga();
+    const v = seedVolume(m, { pageCount: 10 });
+
+    const res = await callBatch({
+      entries: [
+        { mangaId: m, volumeId: v, currentPage: 2, clientUpdatedAt: nowSec() },
+        { mangaId: m, currentPage: "x" }, // missing volumeId/clientUpdatedAt
+        "garbage", // not an object
+      ],
+    });
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.accepted).toEqual([{ mangaId: m, volumeId: v }]);
+    expect(json.rejected).toContainEqual({
+      mangaId: m,
+      volumeId: -1,
+      reason: "invalid",
+    });
+    expect(json.rejected).toContainEqual({
+      mangaId: -1,
+      volumeId: -1,
+      reason: "invalid",
+    });
+  });
 });

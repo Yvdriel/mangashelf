@@ -4,6 +4,7 @@ import { zipSync } from "fflate";
 import { db } from "@/db";
 import { manga, volume } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
+import { quoteETag } from "@/lib/http";
 
 const MANGA_DIR = process.env.MANGA_DIR || "/manga";
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
@@ -58,7 +59,11 @@ export function buildVolumeCbz(
         !f.startsWith(".") &&
         IMAGE_EXTENSIONS.has(path.extname(f).toLowerCase()),
     )
+    // Mirrors src/lib/scanner.ts page ordering so the CBZ matches reader order.
     .sort((a, b) => parsePageNumber(a) - parsePageNumber(b));
+
+  // A volume folder with no image pages is effectively absent, not an empty CBZ.
+  if (files.length === 0) return { ok: false, error: "not-found" };
 
   const zipInput: Record<string, [Uint8Array, { level: 0 }]> = {};
   let maxMtimeMs = 0;
@@ -68,13 +73,14 @@ export function buildVolumeCbz(
     if (stat.mtimeMs > maxMtimeMs) maxMtimeMs = stat.mtimeMs;
     const ext = path.extname(file);
     const entryName = `${String(idx + 1).padStart(4, "0")}${ext}`;
-    zipInput[entryName] = [new Uint8Array(fs.readFileSync(filePath)), { level: 0 }];
+    // readFileSync already returns a Buffer (a Uint8Array) — no extra copy.
+    zipInput[entryName] = [fs.readFileSync(filePath), { level: 0 }];
   });
 
   const bytes = zipSync(zipInput, { level: 0 });
 
   const pageCount = files.length;
-  const etag = `vol-${vol.id}-${pageCount}-${Math.floor(maxMtimeMs)}`;
+  const etag = quoteETag(`vol-${vol.id}-${pageCount}-${Math.floor(maxMtimeMs)}`);
   const filename = `${mangaData.title} v${String(volumeNumber).padStart(2, "0")}.cbz`;
 
   return { ok: true, bytes, pageCount, etag, filename };

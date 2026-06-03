@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import { getSessionFromRequest } from "@/lib/api-auth";
 import { resolveMokuroFile } from "@/lib/ocr";
+import { ifNoneMatchSatisfied, quoteETag } from "@/lib/http";
 
 export async function GET(
   request: Request,
@@ -31,8 +32,8 @@ export async function GET(
   let etag: string;
   try {
     const stat = fs.statSync(resolved.absolutePath);
-    etag = `ocr-${resolved.volumeId}-${stat.mtimeMs}`;
-    if (request.headers.get("if-none-match") === etag) {
+    etag = quoteETag(`ocr-${resolved.volumeId}-${stat.mtimeMs}`);
+    if (ifNoneMatchSatisfied(request.headers.get("if-none-match"), etag)) {
       return new NextResponse(null, {
         status: 304,
         headers: {

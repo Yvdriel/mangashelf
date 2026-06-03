@@ -81,4 +81,15 @@ describe("GET /api/v1/manga/[id]/volume/[volumeNumber]/archive", () => {
     );
     expect(res.status).toBe(400);
   });
+
+  it("returns 404 when the volume folder has no image pages", async () => {
+    const userId = seedUser();
+    seedToken(userId);
+    const folder = "Empty Manga [anilist-556]";
+    const mangaId = seedManga({ folderName: folder, title: "Empty Manga" });
+    seedVolume(mangaId, { volumeNumber: 1, folderName: "v01", pageCount: 0 });
+    await writeVolumePages(folder, "v01", 0); // creates the dir, no images
+    const res = await call(mangaId, "1");
+    expect(res.status).toBe(404);
+  });
 });

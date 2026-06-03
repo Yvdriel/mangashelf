@@ -53,10 +53,11 @@ slip in ANY WAVE-2 pillar → stalls CH.9 convergence cliff.
 RECIPE: 0.3→2.1 ◈ serial (substrate). then ⇉ 0.4 doc-spike + F.1 AAR-spike = 2 worktree subagents. TDD F.1 round-trip smoke.
 RISK:   BURN rsdroid-viability (sinks ~17d Flashcards if dead) + Kompakt input/eink/CJK-font (cross-cuts all 4 pillars).
 ITEMS:
-- [ ] 0.3  M ◈    scaffold /android/ Gradle proj           → 2.1 4.1 F.1
-- [ ] 2.1  M ◈    theme + nav + DI wiring                  → 2.2 F.2 D2.* 3-shell
-- [ ] 0.4  S ⇉    document Kompakt device specs            → 4.2 4.3 eink
-- [?] F.1  L ⇉⚔  rsdroid backend integration (SPIKE)      → F.2 F.7
+- [x] 0.3  M ◈    scaffold /android/ Gradle proj           → 2.1 4.1 F.1
+- [x] 2.1  M ◈    theme + nav + DI wiring                  → 2.2 F.2 D2.* 3-shell
+- [x] 0.4  S ⇉    document Kompakt device specs            → 4.2 4.3 eink
+- [x] F.1  L ⇉⚔  rsdroid backend integration (SPIKE)      → F.2 F.7
+✅ CH.1 DONE 2026-06-03 (commit 3dfe462). ■EXIT met: app builds+installs on kompakt28 · device.md answers input(touch, no D-pad)/eink(no refresh API)/screen(800×480 ~216ppi)/CJK(bundle Noto Sans JP). F.1 = VIABLE, ⚔ defended (independent re-run): rsdroid 0.1.50-anki25.02 loads real arm64 librsdroid.so, opens Anki-25.02 collection, read+write proto round-trip + reopen-persist GREEN on kompakt28 (instrumented) AND host JVM. CARRY-FORWARD for CH.5: (1) kotlinOptions `-Xskip-metadata-version-check` REQUIRED (AAR Kotlin-metadata 2.1.0 vs our 1.9.22); (2) call `System.loadLibrary("rsdroid")` before any Backend use (prod AAR ships no auto-loader); (3) toolchain pinned to MMD-1.0.0-proven matrix (Kotlin 1.9.22 / AGP 8.3 / Compose 1.7.3 / compiler 1.5.10).
 
 ### CH.2 — DICT DESKTOP BAKE  ⛓
 ▶ENTRY: none · source banks present (Jitendex/KANJIDIC2/freq/KRADFILE/Tatoeba/KanjiVG/JmdictFurigana).

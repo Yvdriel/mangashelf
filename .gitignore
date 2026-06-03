@@ -58,3 +58,12 @@ next-env.d.ts
 
 # locally-fetched dictionary files (bundled in Docker, dev-only here)
 /var/
+
+# android (Kotlin/Gradle native client)
+/android/.gradle/
+/android/build/
+/android/captures/
+/android/local.properties
+/android/.idea/
+/android/*.iml
+/android/app/build/

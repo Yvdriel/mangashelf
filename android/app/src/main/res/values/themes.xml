@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bare host theme; all UI is Compose under MangaShelfTheme/ThemeMMD. -->
+    <style name="Theme.MangaShelf" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

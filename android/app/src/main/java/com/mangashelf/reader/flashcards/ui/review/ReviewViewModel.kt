@@ -27,12 +27,17 @@ class ReviewViewModel @Inject constructor(
     private val _state = MutableStateFlow<ReviewUiState>(ReviewUiState.Loading)
     val state: StateFlow<ReviewUiState> = _state.asStateFlow()
 
+    /** Label of the next undoable step (e.g. "Answer Card"), or "" when nothing can be undone (F.4). */
+    private val _undoLabel = MutableStateFlow("")
+    val undoLabel: StateFlow<String> = _undoLabel.asStateFlow()
+
     private var deckId: Long = 0L
 
     init {
         viewModelScope.launch {
             deckId = repo.bootstrap()
             loadNext()
+            refreshUndo()
         }
     }
 
@@ -49,6 +54,17 @@ class ReviewViewModel @Inject constructor(
             repo.answer(current.card.cardId, rating)
             repo.refreshDecks()
             loadNext()
+            refreshUndo()
+        }
+    }
+
+    fun undo() {
+        viewModelScope.launch {
+            if (repo.undoLabel().isBlank()) return@launch
+            repo.undo()
+            repo.refreshDecks()
+            loadNext()
+            refreshUndo()
         }
     }
 
@@ -58,5 +74,9 @@ class ReviewViewModel @Inject constructor(
     private suspend fun loadNext() {
         val card = repo.nextCard(deckId)
         _state.value = if (card == null) ReviewUiState.Empty else ReviewUiState.Reviewing(card, answerShown = false)
+    }
+
+    private suspend fun refreshUndo() {
+        _undoLabel.value = repo.undoLabel()
     }
 }

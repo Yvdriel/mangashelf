@@ -181,6 +181,14 @@ class CollectionRepository @Inject constructor(
     /** Resolves an Image-field `<img src>` filename to its file in the collection media folder. */
     fun imageFile(filename: String): File = File(File(collectionDir, MEDIA_DIR), filename)
 
+    // --- F.4 undo ----------------------------------------------------------------
+
+    /** The label of the next undoable step (e.g. "Answer Card"), or "" when nothing can be undone. */
+    suspend fun undoLabel(): String = withBackend { it.getUndoStatus().undo }
+
+    /** Undoes the last undoable step (no-op if [undoLabel] is empty). */
+    suspend fun undo(): Unit = withBackend { it.undo(); Unit }
+
     fun close() = ankiBackend.close()
 
     // --- internals -------------------------------------------------------------

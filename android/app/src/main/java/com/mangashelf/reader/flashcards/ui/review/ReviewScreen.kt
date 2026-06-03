@@ -50,10 +50,13 @@ fun ReviewRoute(
     viewModel: ReviewViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val undoLabel by viewModel.undoLabel.collectAsState()
     ReviewScreen(
         state = state,
+        undoLabel = undoLabel,
         onShowAnswer = viewModel::showAnswer,
         onAnswer = viewModel::answer,
+        onUndo = viewModel::undo,
         imageFileFor = viewModel::imageFile,
         onBack = onBack,
     )
@@ -71,17 +74,29 @@ fun ReviewScreen(
     onAnswer: (Rating) -> Unit,
     imageFileFor: (String) -> File,
     onBack: () -> Unit,
+    undoLabel: String = "",
+    onUndo: () -> Unit = {},
 ) {
-    when (state) {
-        ReviewUiState.Loading -> Centered { TextMMD("Loading…") }
-        ReviewUiState.Empty -> Centered { TextMMD("Nothing due") }
-        is ReviewUiState.Reviewing -> ReviewingContent(
-            card = state.card,
-            answerShown = state.answerShown,
-            onShowAnswer = onShowAnswer,
-            onAnswer = onAnswer,
-            imageFileFor = imageFileFor,
-        )
+    Column(Modifier.fillMaxSize()) {
+        if (undoLabel.isNotBlank()) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                ButtonMMD(onClick = onUndo) { TextMMD("Undo") }
+            }
+        }
+        when (state) {
+            ReviewUiState.Loading -> Centered { TextMMD("Loading…") }
+            ReviewUiState.Empty -> Centered { TextMMD("Nothing due") }
+            is ReviewUiState.Reviewing -> ReviewingContent(
+                card = state.card,
+                answerShown = state.answerShown,
+                onShowAnswer = onShowAnswer,
+                onAnswer = onAnswer,
+                imageFileFor = imageFileFor,
+            )
+        }
     }
 }
 

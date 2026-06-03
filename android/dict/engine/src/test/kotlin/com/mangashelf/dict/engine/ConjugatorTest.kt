@@ -47,6 +47,16 @@ class ConjugatorTest {
         assertTrue("飲めば" in forms)   // conditional
     }
 
+    @Test fun `shape guard returns empty table on posMask-suffix mismatch`() {
+        // godan input routed to the ichidan path (む != る) → no garbage forms
+        assertTrue(Conjugator.conjugate("飲む", Cond.V1).all.isEmpty())
+        // non-i-adjective routed to the adj path
+        assertTrue(Conjugator.conjugate("元気", Cond.ADJ_I).all.isEmpty())
+        // non-する / non-くる irregular inputs
+        assertTrue(Conjugator.conjugate("為る", Cond.VS).all.isEmpty())
+        assertTrue(Conjugator.conjugate("来る", Cond.VK).all.isEmpty())
+    }
+
     @Test fun `ichidan 食べる surface forms`() {
         val forms = Conjugator.conjugate("食べる", Cond.V1).all.map { it.form }.toSet()
         assertTrue("食べた" in forms)

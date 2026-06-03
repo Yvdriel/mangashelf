@@ -4,6 +4,7 @@
 # validation). "Netflix" freq has no clean unauthenticated URL → Aozora substitutes.
 # Idempotent: skips files already present with non-zero size. Re-run to resume.
 set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$(dirname "$0")/../dict-data" || exit 1
 DEST="$(pwd)"
 echo "Downloading source banks → $DEST"
@@ -39,5 +40,22 @@ done
 echo "=== downloaded ==="
 ls -la "$DEST"
 echo "total raw: $(du -ch "$DEST"/* 2>/dev/null | tail -1 | cut -f1)"
-[ "$fail" -eq 0 ] && echo "ALL OK" || echo "SOME FAILED (rerun to resume)"
+
+# Reproducibility guard. Upstream uses floating refs (releases/latest, raw/master)
+# and HTTP (EDRDG), so re-runs CAN fetch different bytes. Verify against the pinned
+# manifest so drift/tampering fails loudly instead of silently changing dict.db.
+# A legitimate upstream update means: review the change, then regenerate the manifest
+#   (cd "$DEST" && shasum -a 256 *.zip *.gz > "$SCRIPT_DIR/checksums.sha256")
+MANIFEST="$SCRIPT_DIR/checksums.sha256"
+if [ "$fail" -eq 0 ] && [ -f "$MANIFEST" ]; then
+  echo "=== verifying checksums vs $MANIFEST ==="
+  if shasum -a 256 -c "$MANIFEST"; then
+    echo "CHECKSUMS OK (bytes match the pinned manifest)"
+  else
+    echo "CHECKSUM MISMATCH — upstream drifted. Review, then re-pin checksums.sha256 deliberately."
+    fail=1
+  fi
+fi
+
+[ "$fail" -eq 0 ] && echo "ALL OK" || echo "SOME FAILED / DRIFTED (review above)"
 exit $fail

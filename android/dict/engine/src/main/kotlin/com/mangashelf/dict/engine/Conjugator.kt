@@ -43,6 +43,7 @@ object Conjugator {
     )
 
     private fun ichidan(d: String): ConjugationTable {
+        if (!d.endsWith("る")) return ConjugationTable(d, emptyList())
         val s = d.dropLast(1) // drop る
         return table(
             d,
@@ -110,6 +111,7 @@ object Conjugator {
     }
 
     private fun adjI(d: String): ConjugationTable {
+        if (!d.endsWith("い")) return ConjugationTable(d, emptyList())
         val s = d.dropLast(1) // drop い
         return table(
             d,
@@ -131,6 +133,7 @@ object Conjugator {
     // -- Irregulars. Operate on the kana spellings the deinflector knows (くる/する),
     //    so 〜する / 〜くる compounds round-trip via the suffix rules too.
     private fun suru(d: String): ConjugationTable {
+        if (!d.endsWith("する")) return ConjugationTable(d, emptyList())
         val p = d.dropLast(2) // drop する
         return table(
             d,
@@ -159,6 +162,7 @@ object Conjugator {
     }
 
     private fun kuru(d: String): ConjugationTable {
+        if (!d.endsWith("くる")) return ConjugationTable(d, emptyList())
         val p = d.dropLast(2) // drop くる
         return table(
             d,

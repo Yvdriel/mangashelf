@@ -20,13 +20,17 @@ const CAP = 30; // max compounds stored per kanji
 const isCjk = (cp: number) =>
   (cp >= 0x4e00 && cp <= 0x9fff) || (cp >= 0x3400 && cp <= 0x4dbf);
 
+// SQLite string-literal escape for embedding a filesystem path (a path may
+// legitimately contain a single quote). Paths here are dev-set, not user input.
+const sql = (p: string) => p.replace(/'/g, "''");
+
 function main() {
   if (!existsSync(D01)) throw new Error(`missing ${D01} (run bake-d01 first)`);
   if (!existsSync(D02)) throw new Error(`missing ${D02} (run bake-d02 first)`);
   const db = openBakeDb(D01, false); // schema already present
 
   console.log("attaching d02, folding custom tables…");
-  db.exec(`ATTACH '${D02}' AS d02`);
+  db.exec(`ATTACH '${sql(D02)}' AS d02`);
   const fold = db.transaction(() => {
     db.exec(`INSERT INTO main.kanji_radical(character,radical) SELECT character,radical FROM d02.kanji_radical`);
     db.exec(`INSERT OR REPLACE INTO main.radical(radical,strokes) SELECT radical,strokes FROM d02.radical`);
@@ -89,7 +93,7 @@ function main() {
   db.pragma("wal_checkpoint(TRUNCATE)");
   console.log("VACUUM INTO", OUT, "…");
   if (existsSync(OUT)) rmSync(OUT);
-  db.exec(`VACUUM INTO '${OUT}'`);
+  db.exec(`VACUUM INTO '${sql(OUT)}'`);
   db.close();
 
   console.log(`dict.db = ${(statSync(OUT).size / 1048576).toFixed(1)} MB`);

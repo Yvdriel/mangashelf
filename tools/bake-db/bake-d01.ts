@@ -125,18 +125,30 @@ function main() {
 
   console.log("building gloss_fts (English)…");
   const insFts = db.prepare(`INSERT INTO gloss_fts(term_id, gloss_en) VALUES(?, ?)`);
-  const rows = db.prepare(`SELECT id, glossary FROM terms`).all() as { id: number; glossary: string }[];
-  const buildFts = db.transaction((rs: typeof rows) => {
-    for (const r of rs) {
-      const en = flattenGloss(JSON.parse(r.glossary));
-      if (en) insFts.run(r.id, en);
-    }
-  });
-  buildFts(rows);
+  // Page by id rather than .all() — keeps only PAGE rows (each carrying a full
+  // glossary JSON) in memory at once. NB: better-sqlite3 forbids writing while a
+  // .iterate() cursor is open on the same connection, so we read a page, then
+  // insert it inside a transaction, then read the next.
+  const pageStmt = db.prepare(`SELECT id, glossary FROM terms WHERE id > ? ORDER BY id LIMIT ?`);
+  const PAGE = 20000;
+  let ftsCount = 0;
+  let lastId = 0;
+  for (;;) {
+    const batch = pageStmt.all(lastId, PAGE) as { id: number; glossary: string }[];
+    if (batch.length === 0) break;
+    const tx = db.transaction((rows: typeof batch) => {
+      for (const r of rows) {
+        const en = flattenGloss(JSON.parse(r.glossary));
+        if (en) { insFts.run(r.id, en); ftsCount++; }
+      }
+    });
+    tx(batch);
+    lastId = batch[batch.length - 1].id;
+  }
   db.exec(`INSERT INTO gloss_fts(gloss_fts) VALUES('optimize')`);
 
   db.pragma("wal_checkpoint(TRUNCATE)");
-  console.log(`d01.db done — terms=${totals.terms} kanji=${totals.kanji} frequency=${totals.frequency} fts=${rows.length}`);
+  console.log(`d01.db done — terms=${totals.terms} kanji=${totals.kanji} frequency=${totals.frequency} fts=${ftsCount}`);
   db.close();
 }
 

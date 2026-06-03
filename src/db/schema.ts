@@ -162,6 +162,30 @@ export const passkeyRelations = relations(passkey, ({ one }) => ({
   }),
 }));
 
+// --- API tokens (native client bearer auth) ---
+
+export const apiToken = sqliteTable("api_token", {
+  id: text("id").primaryKey(), // uuid
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // user label e.g. "Kompakt"
+  tokenHash: text("token_hash").notNull().unique(), // sha256 hex of plaintext
+  prefix: text("prefix").notNull(), // "mst_" + first 8 hex, for display
+  lastUsedAt: integer("last_used_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  revokedAt: integer("revoked_at", { mode: "timestamp" }),
+});
+
+export const apiTokenRelations = relations(apiToken, ({ one }) => ({
+  user: one(user, {
+    fields: [apiToken.userId],
+    references: [user.id],
+  }),
+}));
+
 // --- User preferences ---
 
 export const userPreferences = sqliteTable("user_preferences", {

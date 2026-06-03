@@ -79,13 +79,14 @@ ITEMS:
 RECIPE: 0.1 ◈ FIRST+ALONE (freeze auth schema migration). worktree iso MANDATORY before fan. then ⇉ 1.1,1.3,1.4,O-S.1,0.2 = 5 subagents (separate route files). 1.2 serial after 1.1 (same library-router). TDD per endpoint.
 RISK:   standard (all known) — demoted, but gates client.
 ITEMS:
-- [ ] 0.1   S ◈    API token schema + bearer auth helper    → 0.2 1.1 1.3 1.4 O-S.1
-- [ ] 0.2   M ⇉    token mgmt UI + endpoints                → 2.3
-- [ ] 1.1   M ⇉    library + delta endpoint                 → 1.2 2.2
-- [ ] 1.2   S ◈    cover thumbnail endpoint                 → 3.3
-- [ ] 1.3   L ⇉    CBZ archive streaming endpoint           → 5.1
-- [ ] 1.4   M ⇉    progress GET + batch POST                → 5.3
-- [ ] O-S.1 S ⇉    OCR sidecar /v1/.../ocr                  → O.1
+- [x] 0.1   S ◈    API token schema + bearer auth helper    → 0.2 1.1 1.3 1.4 O-S.1
+- [x] 0.2   M ⇉    token mgmt UI + endpoints                → 2.3
+- [x] 1.1   M ⇉    library + delta endpoint                 → 1.2 2.2
+- [x] 1.2   S ◈    cover thumbnail endpoint                 → 3.3
+- [x] 1.3   L ⇉    CBZ archive streaming endpoint           → 5.1
+- [x] 1.4   M ⇉    progress GET + batch POST                → 5.3
+- [x] O-S.1 S ⇉    OCR sidecar /v1/.../ocr                  → O.1
+✅ CH.3 DONE 2026-06-03 (branch MUDITA-chapter-3). ■EXIT met: bearer-auth (api_token + getSessionFromRequest, migration 0009) + token-UI (/settings/tokens) + /v1 library/delta + cover-thumb (ETag/304) + CBZ-stream (fflate zipSync STORE) + progress GET/batch (LWW by clientUpdatedAt) + OCR-sidecar (mtime ETag/304). 90 tests green vs seeded DB (per-file temp SQLite+MANGA_DIR harness, src/test/*); tsc + prod build clean. DEVIATION: fan-out ran shared-tree parallel (files verified disjoint) not worktree-iso. CARRY-FORWARD: (1) library delta is manga-level (volume table has no updatedAt); (2) better-sqlite3 needs `npm rebuild` for local Node ≠ 22; (3) repo lint already red pre-CH.3 (7 set-state-in-effect violations) — defer to CI wiring 6.3.
 
 > ★ WAVE-1 BARRIER — CH.1+2+3 concurrent (3 disjoint dirs, no cross-worktree). after: 3 pillar tracks open.
 

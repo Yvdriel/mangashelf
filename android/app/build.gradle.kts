@@ -44,6 +44,11 @@ android {
     kotlinOptions {
         jvmTarget = "17"
         freeCompilerArgs += "-opt-in=kotlin.RequiresOptIn"
+        // The Anki backend AAR's own .class files carry Kotlin metadata 2.1.0, which is two
+        // versions ahead of this module's 1.9.22 compiler (it reads up to current+1 = 2.0.0).
+        // The bytecode is JVM-compatible; only the metadata version gate trips. Skipping the
+        // check lets 1.9.22 consume the 2.1.x-built backend. (F.1 spike integration wrinkle.)
+        freeCompilerArgs += "-Xskip-metadata-version-check"
     }
 
     buildFeatures {
@@ -98,12 +103,29 @@ dependencies {
 
     implementation(libs.androidx.work.runtime.ktx)
 
+    // Flashcards (F.1 spike): Anki Rust backend AAR — bundles arm64-v8a librsdroid.so
+    // and ~2665 pre-generated anki.* protobuf classes (no Wire/protoc codegen needed).
+    implementation(libs.anki.backend)
+
     testImplementation(libs.junit)
+    // Host-JVM tier: bundles librsdroid.dylib/.so + RustBackendLoader.ensureSetup().
+    testImplementation(libs.anki.backend.testing)
     androidTestImplementation(libs.androidx.test.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.compose.ui.test.junit4)
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
+}
+
+// The Anki backend AAR pulls kotlin-stdlib:2.1.10, but this module compiles with
+// Kotlin 1.9.22 (MMD-proven matrix). Pin the stdlib to the compiler version to avoid
+// a "newer than compiler" metadata mismatch.
+configurations.all {
+    resolutionStrategy {
+        force("org.jetbrains.kotlin:kotlin-stdlib:${libs.versions.kotlin.get()}")
+    }
 }
 
 kapt {

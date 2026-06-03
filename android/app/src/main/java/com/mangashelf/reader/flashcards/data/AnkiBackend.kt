@@ -78,6 +78,24 @@ class AnkiBackend : Closeable {
     internal fun requireBackend(): Backend = requireNotNull(backend) { "AnkiBackend not open" }
 
     /**
+     * Replaces the open collection with the contents of [backupPath] (a `.colpkg`). rslib's
+     * collection-package import is a whole-collection replace that needs the collection closed,
+     * so we close it, import (writing to [collectionPath] + media), then reopen on the same native
+     * handle. Used by F.7. (Export reads the live collection and needs no close.)
+     */
+    fun importCollectionPackage(
+        collectionPath: String,
+        backupPath: String,
+        mediaDir: String,
+        mediaDbPath: String,
+    ) {
+        val b = requireNotNull(backend) { "AnkiBackend not open" }
+        if (b.isOpen()) b.closeCollection(false)
+        b.importCollectionPackage(collectionPath, backupPath, mediaDir, mediaDbPath)
+        b.openCollection(collectionPath, mediaDir, mediaDbPath)
+    }
+
+    /**
      * Proto round-trip: returns the deck names in the open collection. NOTE: on Anki 25.02
      * this is EMPTY for a brand-new collection (the Default deck, id 1, is not surfaced by
      * getDeckNames until a deck is actually created). Use [defaultDeckId] to prove the
@@ -116,16 +134,26 @@ class AnkiBackend : Closeable {
     }
 
     /**
-     * Closes the collection and releases the native backend. Safe to call when not open.
-     * After this returns, [open] may be called again on the same (or another) path.
+     * Forces the collection (re)open on the existing native handle. Tolerant of the collection
+     * being already open OR already closed — rslib's `exportCollectionPackage` closes the
+     * collection as a snapshot side effect, leaving it closed, so callers reopen after export.
+     */
+    fun reopenCollection(collectionPath: String, mediaDir: String, mediaDbPath: String) {
+        val b = requireNotNull(backend) { "AnkiBackend not open" }
+        runCatching { b.closeCollection(false) }
+        b.openCollection(collectionPath, mediaDir, mediaDbPath)
+    }
+
+    /**
+     * Closes the collection and releases the native backend. Safe to call when not open. The
+     * collection may already be closed (e.g. right after an export), so a failing close is
+     * swallowed; the native handle is always released.
      */
     override fun close() {
         val b = backend ?: return
         try {
-            if (b.isOpen()) {
-                // downgrade=false: do not rewrite the schema to a legacy version on close.
-                b.closeCollection(false)
-            }
+            // downgrade=false: do not rewrite the schema to a legacy version on close.
+            runCatching { b.closeCollection(false) }
         } finally {
             b.close()
             backend = null

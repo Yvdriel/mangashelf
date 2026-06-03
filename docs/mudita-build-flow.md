@@ -114,10 +114,11 @@ ITEMS:
 - [x] F.2  M ◈    collection bootstrap + mining note + DI  → F.3 F.8
 - [x] F.3  L ◈    review screen (FSRS, 4 buttons)          → F.4 F.5 F.6
 - [x] F.4  S ⇉    undo                                     →
-- [ ] F.5  M ⇉    scheduler settings                       →
-- [ ] F.6  M ⇉    calendar heatmap (📵 e-ink tune→CH.11)   →
-- [ ] F.7  M ⇉    import/export full history               →
+- [x] F.5  M ⇉    scheduler settings                       →
+- [x] F.6  M ⇉    calendar heatmap (📵 e-ink tune→CH.11)   →
+- [x] F.7  M ⇉    import/export full history               →
 - [x] F.8  S ⇉    card-creation (mining) API               → O.3 D3.2
+✅ CH.5 DONE 2026-06-03 (worktree MUDITA-chapter-5-flashcards off mudita-port). ■EXIT met: collection+"MangaShelf Mining" notetype+DI · FSRS review (4 buttons labelled w/ backend intervals) · undo · scheduler settings · total-reviews heatmap · .colpkg/.apkg import-export w/ full revlog · F.8 addMiningNote exposed (OCR/dict hook). All on rsdroid 0.1.50-anki25.02, NO proto codegen (AAR-bundled anki.* protos + named Backend wrappers). 14 instrumented tests GREEN on kompakt28 + JVM unit. TDD anchors GREEN: F.3 FSRS interval vector (fresh-card Easy graduate ~16d = FSRS-5 w[3], not SM-2 4d) + F.7 colpkg round-trip (revlog intact). CARRY-FORWARD: (1) updateDeckConfigs trailing booleans in proto field order = newCardsIgnoreReviewLimit(7)/fsrs(8)/applyAllParentLimits(9)/fsrsReschedule(10) — fsrs is the 2nd bool; (2) set TMPDIR (Os.setenv) to app-private dir before any backend file op — rslib export/media default to non-writable /data/local/tmp; (3) exportCollectionPackage CLOSES the collection (snapshot) → reopen after; (4) Noto Sans JP bundled res/font (system font Latin-only). 📵 e-ink/CJK/furigana render parity for F.3/F.6 pooled to CH.11.
 
 ### CH.6 — DICT ENGINE SPINE + UI  ⛓→⇉  (pillar track, forks after CH.2; split 6a/6b if ctx tight)
 ▶ENTRY: dict.db baked + D1.1/D1.2/D1.4 (CH.2) done · 2.1 (CH.1) for Compose.

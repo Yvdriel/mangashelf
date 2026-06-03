@@ -6,7 +6,10 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.mangashelf.reader.flashcards.ui.importexport.ImportExportRoute
 import com.mangashelf.reader.flashcards.ui.review.ReviewRoute
+import com.mangashelf.reader.flashcards.ui.settings.SchedulerSettingsRoute
+import com.mangashelf.reader.flashcards.ui.stats.HeatmapRoute
 import com.mangashelf.reader.ui.downloads.DownloadsScreen
 import com.mangashelf.reader.ui.library.LibraryScreen
 import com.mangashelf.reader.ui.manga.MangaDetailScreen
@@ -41,6 +44,9 @@ fun MangaShelfNavHost(navController: NavHostController) {
                 onDownloads = { navController.navigate(Routes.DOWNLOADS) },
                 onSettings = { navController.navigate(Routes.SETTINGS) },
                 onFlashcards = { navController.navigate(Routes.FLASHCARDS_REVIEW) },
+                onScheduler = { navController.navigate(Routes.FLASHCARDS_SETTINGS) },
+                onHeatmap = { navController.navigate(Routes.FLASHCARDS_HEATMAP) },
+                onImportExport = { navController.navigate(Routes.FLASHCARDS_IMPORT_EXPORT) },
             )
         }
         composable(Routes.MANGA_DETAIL) {
@@ -60,6 +66,15 @@ fun MangaShelfNavHost(navController: NavHostController) {
         }
         composable(Routes.FLASHCARDS_REVIEW) {
             ReviewRoute(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.FLASHCARDS_SETTINGS) {
+            SchedulerSettingsRoute(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.FLASHCARDS_HEATMAP) {
+            HeatmapRoute(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.FLASHCARDS_IMPORT_EXPORT) {
+            ImportExportRoute(onBack = { navController.popBackStack() })
         }
     }
 }

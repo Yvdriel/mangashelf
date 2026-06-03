@@ -9,6 +9,9 @@ fun LibraryScreen(
     onDownloads: () -> Unit,
     onSettings: () -> Unit,
     onFlashcards: () -> Unit = {},
+    onScheduler: () -> Unit = {},
+    onHeatmap: () -> Unit = {},
+    onImportExport: () -> Unit = {},
 ) {
     PlaceholderScreen(
         title = "Library",
@@ -16,6 +19,9 @@ fun LibraryScreen(
             "Open manga" to onOpenManga,
             "Downloads" to onDownloads,
             "Flashcards" to onFlashcards,
+            "Scheduler" to onScheduler,
+            "Heatmap" to onHeatmap,
+            "Import / Export" to onImportExport,
             "Settings" to onSettings,
         ),
     )

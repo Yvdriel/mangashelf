@@ -4,6 +4,10 @@ import androidx.annotation.VisibleForTesting
 import anki.deck_config.DeckConfigsForUpdate
 import anki.deck_config.UpdateDeckConfigsMode
 import anki.decks.Deck
+import anki.generic.Empty
+import anki.import_export.ExportAnkiPackageOptions
+import anki.import_export.ExportLimit
+import anki.import_export.ImportAnkiPackageOptions
 import anki.notes.Note
 import anki.scheduler.CardAnswer
 import com.google.protobuf.ByteString
@@ -13,6 +17,7 @@ import com.mangashelf.reader.flashcards.data.model.DeckSummary
 import com.mangashelf.reader.flashcards.data.model.NoteFields
 import com.mangashelf.reader.flashcards.data.model.Rating
 import com.mangashelf.reader.flashcards.data.model.ReviewCard
+import com.mangashelf.reader.flashcards.data.model.SchedulerSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -189,6 +194,128 @@ class CollectionRepository @Inject constructor(
     /** Undoes the last undoable step (no-op if [undoLabel] is empty). */
     suspend fun undo(): Unit = withBackend { it.undo(); Unit }
 
+    // --- F.5 scheduler settings --------------------------------------------------
+
+    /** Reads the single global preset: rollover (preferences) + new/rev/day, FSRS, retention (deck config). */
+    suspend fun schedulerSettings(): SchedulerSettings = withBackend { b ->
+        val scheduling = b.getPreferences().scheduling
+        val forUpdate = b.getDeckConfigsForUpdate(DEFAULT_DECK_ID)
+        val config = forUpdate.allConfigList.first().config.config
+        SchedulerSettings(
+            rolloverHour = scheduling.rollover,
+            newPerDay = config.newPerDay,
+            reviewsPerDay = config.reviewsPerDay,
+            fsrsEnabled = forUpdate.fsrs,
+            desiredRetention = config.desiredRetention,
+        )
+    }
+
+    /** Persists [settings] to the global preset (rollover via preferences, the rest via deck config). */
+    suspend fun updateSchedulerSettings(settings: SchedulerSettings): Unit = withBackend { b ->
+        val prefs = b.getPreferences()
+        b.setPreferences(
+            prefs.toBuilder()
+                .setScheduling(prefs.scheduling.toBuilder().setRollover(settings.rolloverHour).build())
+                .build(),
+        )
+        val forUpdate = b.getDeckConfigsForUpdate(DEFAULT_DECK_ID)
+        val configs = forUpdate.allConfigList.map { configWithExtra ->
+            val deckConfig = configWithExtra.config
+            deckConfig.toBuilder()
+                .setConfig(
+                    deckConfig.config.toBuilder()
+                        .setNewPerDay(settings.newPerDay)
+                        .setReviewsPerDay(settings.reviewsPerDay)
+                        .setDesiredRetention(settings.desiredRetention)
+                        .build(),
+                )
+                .build()
+        }
+        b.updateDeckConfigs(
+            DEFAULT_DECK_ID,
+            configs,
+            emptyList(),
+            UpdateDeckConfigsMode.UPDATE_DECK_CONFIGS_MODE_NORMAL,
+            "",
+            DeckConfigsForUpdate.CurrentDeck.Limits.getDefaultInstance(),
+            false,                  // newCardsIgnoreReviewLimit
+            settings.fsrsEnabled,   // fsrs
+            false,                  // applyAllParentLimits
+            false,                  // fsrsReschedule
+        )
+        Unit
+    }
+
+    // --- F.6 heatmap -------------------------------------------------------------
+
+    /**
+     * Total reviews per day across all decks, keyed by day offset (0 = today, negative = past),
+     * from rslib's `graphs` (revlog grouped by day, rollover-aware). Sums all review buckets.
+     */
+    suspend fun reviewsByDay(days: Int = 365): Map<Int, Int> = withBackend { b ->
+        b.graphs("", days).reviews.countMap.mapValues { (_, r) ->
+            r.learn + r.relearn + r.young + r.mature + r.filtered
+        }
+    }
+
+    // --- F.7 import / export -----------------------------------------------------
+
+    /** Exports the full collection (with revlog history) to [outPath] as a `.colpkg`. */
+    suspend fun exportColpkg(outPath: String, includeMedia: Boolean = true): Unit = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            ensureOpen()
+            ankiBackend.requireBackend().exportCollectionPackage(outPath, includeMedia, /* legacy = */ false)
+            reopenLocked() // export closes the collection as a snapshot side effect
+        }
+    }
+
+    /** Replaces the whole collection with the `.colpkg` at [backupPath] (full history restore). */
+    suspend fun importColpkg(backupPath: String): Unit = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            ensureOpen()
+            val col = File(collectionDir, COLLECTION_FILE).absolutePath
+            val media = File(collectionDir, MEDIA_DIR).apply { mkdirs() }.absolutePath
+            val mediaDb = File(collectionDir, MEDIA_DB).absolutePath
+            ankiBackend.importCollectionPackage(col, backupPath, media, mediaDb)
+        }
+    }
+
+    /** Exports the whole collection as an `.apkg` (deck share); scheduling/history optional. */
+    suspend fun exportApkg(
+        outPath: String,
+        withScheduling: Boolean = true,
+        withMedia: Boolean = true,
+    ): Unit = withBackend { b ->
+        val options = ExportAnkiPackageOptions.newBuilder()
+            .setWithScheduling(withScheduling)
+            .setWithMedia(withMedia)
+            .setWithDeckConfigs(true)
+            .setLegacy(false)
+            .build()
+        val limit = ExportLimit.newBuilder()
+            .setWholeCollection(Empty.getDefaultInstance())
+            .build()
+        b.exportAnkiPackage(outPath, options, limit)
+        reopenLocked() // export closes the collection as a snapshot side effect
+        Unit
+    }
+
+    /** Imports an `.apkg` (additive; scheduling info applied when present). */
+    suspend fun importApkg(path: String): Unit = withBackend { b ->
+        val options = ImportAnkiPackageOptions.newBuilder()
+            .setWithScheduling(true)
+            .setWithDeckConfigs(true)
+            .build()
+        b.importAnkiPackage(path, options)
+        Unit
+    }
+
+    /** The number of review-log entries for [cardId] (used to assert history survives a round-trip). */
+    suspend fun cardRevlogCount(cardId: Long): Int = withBackend { b -> b.cardStats(cardId).revlogCount }
+
+    /** The card ids of [noteId]. */
+    suspend fun cardsOfNote(noteId: Long): List<Long> = withBackend { b -> b.cardsOfNote(noteId) }
+
     fun close() = ankiBackend.close()
 
     // --- internals -------------------------------------------------------------
@@ -255,10 +382,23 @@ class CollectionRepository @Inject constructor(
     private fun ensureOpen() {
         if (ankiBackend.isOpen) return
         collectionDir.mkdirs()
+        // rslib import/export and media ops write scratch files to the process temp dir, which on
+        // Android defaults to the non-writable /data/local/tmp. Point it at app-private storage
+        // (as AnkiDroid does) before any backend file op.
+        val tmp = File(collectionDir, "tmp").apply { mkdirs() }
+        android.system.Os.setenv("TMPDIR", tmp.absolutePath, true)
         val col = File(collectionDir, COLLECTION_FILE).absolutePath
         val media = File(collectionDir, MEDIA_DIR).apply { mkdirs() }.absolutePath
         val mediaDb = File(collectionDir, MEDIA_DB).absolutePath
         ankiBackend.open(col, media, mediaDb)
+    }
+
+    /** Reopens the collection after an export snapshot closed it. Caller already holds [mutex]. */
+    private fun reopenLocked() {
+        val col = File(collectionDir, COLLECTION_FILE).absolutePath
+        val media = File(collectionDir, MEDIA_DIR).apply { mkdirs() }.absolutePath
+        val mediaDb = File(collectionDir, MEDIA_DB).absolutePath
+        ankiBackend.reopenCollection(col, media, mediaDb)
     }
 
     /** Test-only: run a block against the open backend through the same serialised path. */

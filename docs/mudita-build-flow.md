@@ -141,15 +141,43 @@ ITEMS:
 RECIPE: 6a ⛓ — D1.3 FIRST+ALONE (L, db-copy/DAO, unknown on-device load), D1.5→D1.6 serial, D2.1 renderer folds in (no engine dep). 6b ⇉ — D2.2..D2.6 = 5-wide screen fan off D1.6+D2.1. WORKTREE vs CH.4/CH.5. TDD D1.3 load + D1.6 contract.
 RISK:   on-device db load (size) · SC renderer node coverage.
 ITEMS:
-- [?] D1.3 L ◈    prebaked dict.db + DAO + lookup()/scan() → D1.5 D1.6
-- [ ] D1.5 S ◈    English FTS + wildcard/#tag parser        → D1.6
-- [ ] D1.6 M ◈    entry/kanji/kanjiByRadicals/compounds/examples → D2.* D3.1
-- [ ] D2.1 M ◈    StructuredContent Compose renderer        → D2.2 D2.3
-- [ ] D2.2 M ⇉    search screen                            →
-- [ ] D2.3 M ⇉    entry detail screen                      → D3.1 D3.2
-- [ ] D2.4 M ⇉    kanji detail (KanjiVG SVG 📵-verdict→CH.11) →
-- [ ] D2.5 M ⇉    kana table screen                        →
-- [ ] D2.6 M ⇉    radical search screen                    →
+- [x] D1.3 L ◈    prebaked dict.db + DAO + lookup()/scan() → D1.5 D1.6
+- [x] D1.5 S ◈    English FTS + wildcard/#tag parser        → D1.6
+- [x] D1.6 M ◈    entry/kanji/kanjiByRadicals/compounds/examples → D2.* D3.1
+- [x] D2.1 M ◈    StructuredContent renderer (model+flatten+cardBackHtml + Compose StructuredContentText) → D2.2 D2.3
+- [x] D2.2 M ⇉    search screen                            →
+- [x] D2.3 M ⇉    entry detail screen                      → D3.1 D3.2
+- [x] D2.4 M ⇉    kanji detail (KanjiVG SVG render 📵→CH.11; shows path + info) →
+- [x] D2.5 M ⇉    kana table screen                        →
+- [x] D2.6 M ⇉    radical search screen                    →
+✅ CH.6 6b DONE 2026-06-04 (same branch). 5 dict Compose screens (search/entry/kanji/kana/radical)
+  fanned to 5 subagents (disjoint dict/ui/<screen>/ leaves; main owns Routes/NavHost/DI/StructuredContentText).
+  Each = Route + @HiltViewModel + stateless screen + Compose UI test. 9 dict UI instrumented tests GREEN
+  on kompakt28-2 (stateless screens, no DB needed). :app→:dict:data wired; :dict:engine exposed `api`
+  (ConjugationTable/rulesToConditions leak through the contract); added DictEngine.radicals(). KanjiVG
+  stroke-order SVG render stays 📵 (kanji screen shows the asset path + info; render verdict→CH.11/D2.4).
+  Dict routes navigable but only launched from the 3-section shell (D3.3/CH.9). CH.6 ■EXIT met.
+✅ CH.6 6a DONE 2026-06-04 (branch MUDITA-chapter-6-dict off mudita-port; worktree-iso). 6a ■: :dict:data
+  module — `DictEngine` contract (lookup/scan/searchEnglish/search/entry/kanji/kanjiByRadicals/
+  compounds/examples/conjugate/cardBackHtml) over the prebaked dict-trim.db (929 MB), + D2.1 render
+  model (flatten + cardBackHtml). 32 tests GREEN (13 instrumented on kompakt28-2 + 19 JVM unit);
+  :app still builds. 6b (D2.2–D2.6 screens) = parallel-fan follow-up.
+  ⚔ KEY DEVIATION (approved): NOT Room. Room 2.6.1 can't model the gloss_fts FTS5 vtable and rejects
+  the hand-baked DB (user_version=0, no room_master_table). Used a raw DAO over **androidx.sqlite
+  BundledSQLiteDriver** (`androidx.sqlite:sqlite-bundled:2.5.2`) — ships SQLite 3.49 w/ FTS5 compiled,
+  standalone (no Room), Google-hosted. (requery `io.requery:sqlite-android` was the first pick but is
+  jcenter-only / unresolvable on Central.)
+  CARRY-FORWARD CH.6 6b + later: (1) **FTS5 confirmed working on-device** via the bundled driver on
+  API-28 (framework SQLite lacks it; platform-tools sqlite3 CLI lacks it too — test via app only);
+  (2) tests **adb push** dict-trim.db → /data/local/tmp/dict.db and open it directly (no SELinux block
+  on the emulator; the 930 MB asset can't ride in the test APK); prod path = `assets/dict/dict.db` via
+  DictDatabaseProvider first-run copy (+ `androidResources { noCompress += "db" }`); (3) **KanjiVG path
+  = `kanjivg/<first-2-of-5hex>/<5-pad-hex>.svg`** (食 U+98DF → kanjivg/09/098df.svg), NOT the doc's
+  earlier `<2hex>/<5hex>`; (4) English search ranks the FTS5 bm25 candidate pool **by frequency** (long
+  glosses padded with example sentences rank poorly under bm25); (5) unified `search()` routes Latin
+  input to romaji-lookup only when it converts to CLEAN kana, else English FTS (eat→食べる, taberu→食べる);
+  (6) root build.gradle needs `android-library apply false`; MMD jfrog repo content-scoped to
+  `com.mudita` (it returns HTML 404s that break POM parsing for other coords).
 
 ### CH.7 — READER CORE + ZOOM  ◈  (critical spine)
 ▶ENTRY: 3.4 (CH.4) + 0.4 device-spec findings (CH.1).

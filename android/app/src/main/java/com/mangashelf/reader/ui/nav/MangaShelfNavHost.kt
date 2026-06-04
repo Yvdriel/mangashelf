@@ -8,6 +8,11 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.mangashelf.reader.dict.ui.entry.EntryRoute
+import com.mangashelf.reader.dict.ui.kana.KanaTableRoute
+import com.mangashelf.reader.dict.ui.kanji.KanjiRoute
+import com.mangashelf.reader.dict.ui.radical.RadicalRoute
+import com.mangashelf.reader.dict.ui.search.SearchRoute
 import com.mangashelf.reader.flashcards.ui.importexport.ImportExportRoute
 import com.mangashelf.reader.flashcards.ui.review.ReviewRoute
 import com.mangashelf.reader.flashcards.ui.settings.SchedulerSettingsRoute
@@ -83,6 +88,44 @@ fun MangaShelfNavHost(
         }
         composable(Routes.FLASHCARDS_IMPORT_EXPORT) {
             ImportExportRoute(onBack = { navController.popBackStack() })
+        }
+
+        // Dictionary pillar (D2.2–D2.6). Reachable from the 3-section shell in D3.3 (CH.9).
+        composable(Routes.DICT_SEARCH) {
+            SearchRoute(
+                onOpenEntry = { navController.navigate(Routes.dictEntry(it)) },
+                onOpenKanji = { navController.navigate(Routes.dictKanji(it)) },
+                onKana = { navController.navigate(Routes.DICT_KANA) },
+                onRadical = { navController.navigate(Routes.DICT_RADICAL) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            Routes.DICT_ENTRY,
+            arguments = listOf(navArgument(Routes.DICT_ARG_SEQUENCE) { type = NavType.IntType }),
+        ) {
+            EntryRoute(
+                onOpenKanji = { navController.navigate(Routes.dictKanji(it)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            Routes.DICT_KANJI,
+            arguments = listOf(navArgument(Routes.DICT_ARG_CHAR) { type = NavType.StringType }),
+        ) {
+            KanjiRoute(
+                onOpenEntry = { navController.navigate(Routes.dictEntry(it)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.DICT_KANA) {
+            KanaTableRoute(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.DICT_RADICAL) {
+            RadicalRoute(
+                onOpenKanji = { navController.navigate(Routes.dictKanji(it)) },
+                onBack = { navController.popBackStack() },
+            )
         }
     }
 }

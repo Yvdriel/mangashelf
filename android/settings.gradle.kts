@@ -29,5 +29,5 @@ include(":app")
 include(":dict:engine")
 include(":dict:romaji")
 // CH.6 — Android data layer over the prebaked dict.db: DAO + DictEngine contract +
-// StructuredContent model. Raw SupportSQLite (requery, bundled FTS5), NOT Room.
+// StructuredContent model. Raw DAO over androidx.sqlite BundledSQLiteDriver (bundled FTS5), NOT Room.
 include(":dict:data")

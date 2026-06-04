@@ -91,6 +91,16 @@ class DictEngineContractTest {
     }
 
     @Test
+    fun searchEnglish_malformedQuery_doesNotThrow() = runBlocking {
+        // Unmatched quote / bare FTS operators must be sanitized, not crash the search box.
+        engine.searchEnglish("\"")
+        engine.searchEnglish("eat AND")
+        engine.search("eat* \"")
+        // ...and a normal query still resolves through the sanitizer.
+        assertTrue(engine.searchEnglish("eat").any { it.record.expression == "食べる" })
+    }
+
+    @Test
     fun search_japanese_routesToLookup() = runBlocking {
         assertTrue(engine.search("食べる").any { it.record.expression == "食べる" })
     }

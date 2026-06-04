@@ -72,12 +72,18 @@ internal class DictDao(private val conn: SQLiteConnection) {
         }
     }
 
-    /** English gloss search via the FTS5 virtual table → term_id → join terms. */
+    /**
+     * English gloss search via the FTS5 virtual table → term_id → join terms.
+     * `rank` is FTS5's built-in bm25 relevance column. A malformed MATCH expression (the caller
+     * should pre-sanitize, but defence in depth) yields no results rather than a thrown exception.
+     */
     fun searchGlossFts(match: String, limit: Int): List<TermRow> {
-        val ids = query(
-            "SELECT term_id FROM gloss_fts WHERE gloss_fts MATCH ? ORDER BY rank LIMIT ?",
-            bind = { st -> st.bindText(1, match); st.bindLong(2, limit.toLong()) },
-        ) { st -> st.getLong(0) }
+        val ids = runCatching {
+            query(
+                "SELECT term_id FROM gloss_fts WHERE gloss_fts MATCH ? ORDER BY rank LIMIT ?",
+                bind = { st -> st.bindText(1, match); st.bindLong(2, limit.toLong()) },
+            ) { st -> st.getLong(0) }
+        }.getOrDefault(emptyList())
         if (ids.isEmpty()) return emptyList()
         val out = ArrayList<TermRow>()
         val seen = HashSet<Long>()

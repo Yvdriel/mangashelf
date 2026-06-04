@@ -1,5 +1,5 @@
 // :dict:data — CH.6 Android data layer over the prebaked dict.db (CH.2, ~930 MB trim).
-// Raw DAO over SupportSQLiteOpenHelper (requery's bundled SQLite → guaranteed FTS5), NOT Room:
+// Raw DAO over androidx.sqlite BundledSQLiteDriver (bundled SQLite → guaranteed FTS5), NOT Room:
 // Room 2.6.1 has no @Fts5 for the gloss_fts virtual table, and the hand-baked DB has no
 // room_master_table (user_version=0) so Room's identity-hash check would reject it.
 plugins {
@@ -17,7 +17,8 @@ android {
     defaultConfig {
         minSdk = 28
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        // arm64-only: Mudita Kompakt is Helio A22; requery ships an arm64-v8a libsqlite3x.so.
+        // arm64-only: Mudita Kompakt is Helio A22; androidx.sqlite:sqlite-bundled ships an
+        // arm64-v8a native SQLite .so.
         ndk {
             abiFilters += "arm64-v8a"
         }

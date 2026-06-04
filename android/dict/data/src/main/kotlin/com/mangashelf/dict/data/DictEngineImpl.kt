@@ -74,12 +74,14 @@ class DictEngineImpl @Inject constructor(
 
     override suspend fun searchEnglish(query: String): List<TermHit> = withContext(Dispatchers.IO) {
         mutex.withLock {
-            val q = query.trim()
-            if (q.isEmpty()) return@withLock emptyList()
+            // Sanitize into a safe FTS5 MATCH: quote each word token so user punctuation/operators
+            // (unmatched quotes, bare `*`, AND/OR/NEAR) can't throw a query-syntax error.
+            val match = englishMatch(query)
+            if (match.isEmpty()) return@withLock emptyList()
             val dictById = dao.listDictionaries().associateBy { it.id }
             // FTS5 (bm25) gives the relevance candidate pool; re-rank by frequency so common words
             // surface first (a long gloss padded with example sentences ranks poorly under bm25).
-            rankByFrequency(toHits(dao.searchGlossFts(q, FTS_CANDIDATES), dictById)).take(ENGLISH_RESULTS)
+            rankByFrequency(toHits(dao.searchGlossFts(match, FTS_CANDIDATES), dictById)).take(ENGLISH_RESULTS)
         }
     }
 
@@ -327,6 +329,13 @@ class DictEngineImpl @Inject constructor(
         const val EXAMPLES_LIMIT = 20
 
         fun readingKey(expression: String, reading: String?): String = "$expression|${reading ?: ""}"
+
+        private val FTS_TOKEN = Regex("[^\\p{L}\\p{N}']+")
+
+        /** Quote each word token → an FTS5 MATCH string immune to user punctuation/operators. */
+        fun englishMatch(raw: String): String =
+            raw.split(FTS_TOKEN).filter { it.isNotBlank() }
+                .joinToString(" ") { "\"" + it.replace("\"", "\"\"") + "\"" }
 
         // KANJI_RE /[一-鿿㐀-䶿]/ — CJK Unified + Ext A. KANA_RE /[぀-ヿｦ-ﾟ]/ — kana + halfwidth.
         fun isKanji(c: Char): Boolean = c.code in 0x4E00..0x9FFF || c.code in 0x3400..0x4DBF

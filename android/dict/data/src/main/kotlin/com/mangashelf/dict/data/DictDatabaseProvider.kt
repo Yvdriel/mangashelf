@@ -46,8 +46,16 @@ class DictDatabaseProvider @Inject constructor(
     private fun ensureCopied() {
         if (dbFile.exists() && dbFile.length() > 0L) return
         dbFile.parentFile?.mkdirs()
+        // Copy to a temp file then atomically rename, so a process kill / out-of-space mid-copy of
+        // the ~930 MB asset can't leave a truncated file that the length>0 check would accept.
+        val tmp = File(dbFile.parentFile, dbFile.name + ".tmp")
+        tmp.delete()
         context.assets.open(ASSET).use { input ->
-            dbFile.outputStream().use { output -> input.copyTo(output) }
+            tmp.outputStream().use { output -> input.copyTo(output) }
+        }
+        if (!tmp.renameTo(dbFile)) {
+            tmp.delete()
+            throw IllegalStateException("Failed to install dict.db from asset")
         }
     }
 

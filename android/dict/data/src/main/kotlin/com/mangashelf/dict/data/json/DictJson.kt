@@ -19,10 +19,11 @@ import kotlinx.serialization.json.Json
 
 /**
  * Decoders for the JSON TEXT columns of dict.db (definitionTags, rules, onyomi, …, glossary,
- * segments). The glossary column is a heterogeneous Yomitan `GlossaryNode[]` (string | {type} |
- * {tag} | nested array) so it is walked by hand rather than auto-deserialized. Faithful to the
- * `GlossaryNode`/`StructuredContent` union in src/lib/dict/types.ts. Decode failures degrade to
- * empty rather than crash a lookup.
+ * segments). The glossary column is a heterogeneous Yomitan `GlossaryNode[]` whose elements are
+ * `string | {type:"text"|"image"|"structured-content"}`; only the nested `StructuredContent`
+ * (inside a `structured-content` node) adds `{tag,…}` elements and arrays. Walked by hand rather
+ * than auto-deserialized. Faithful to the union in src/lib/dict/types.ts. Decode failures degrade
+ * to empty rather than crash a lookup.
  */
 internal object DictJson {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }

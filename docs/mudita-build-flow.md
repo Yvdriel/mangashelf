@@ -105,13 +105,14 @@ ITEMS:
 RECIPE: ◈ SOLO spine 2.2→3.1→3.2→3.3→3.4. small fan 2.3 onboarding ‖ 3.1 Room after 2.2. 6.3 CI folded here (path-filter android/‖src/) → guards 7 later chapters.
 RISK:   standard plumbing (after all spikes).
 ITEMS:
-- [ ] 2.2  M ◈    TokenStore + Retrofit + AuthInterceptor  → 2.3 3.1
-- [ ] 2.3  M ◈    onboarding screen                        → (library)
-- [ ] 3.1  M ◈    Room v1 + entities + LibraryRepository   → 3.2 3.3
-- [ ] 3.2  S ◈    LibraryDeltaWorker + manual refresh      → 3.3
-- [ ] 3.3  M ◈    LibraryScreen                            → 3.4
-- [ ] 3.4  M ◈    MangaDetailScreen + pin toggle           → 4.2 5.1
-- [ ] 6.3  S ⇉    CI wiring (path-filtered)                → (guards all later)
+- [x] 2.2  M ◈    TokenStore + Retrofit + AuthInterceptor  → 2.3 3.1
+- [x] 2.3  M ◈    onboarding screen                        → (library)
+- [x] 3.1  M ◈    Room v1 + entities + LibraryRepository   → 3.2 3.3
+- [x] 3.2  S ◈    LibraryDeltaWorker + manual refresh      → 3.3
+- [x] 3.3  M ◈    LibraryScreen                            → 3.4
+- [x] 3.4  M ◈    MangaDetailScreen + pin toggle           → 4.2 5.1
+- [x] 6.3  S ⇉    CI wiring (path-filtered)                → (guards all later)
+✅ CH.4 DONE 2026-06-04 (branch MUDITA-chapter-4-client off mudita-port). ■EXIT met, verified live on kompakt28 against a seeded dev server: onboard w/ bearer (whoami validate → EncryptedSharedPreferences persist → route to Library, skipped on restart) → Room v1 persists library ((mangaId,volumeNumber) natural key) → LibraryDeltaWorker (6h periodic + one-shot, changedSince delta) → LibraryScreen w/ Coil covers → MangaDetailScreen + pin (persists across restart). Tests: JVM (AuthInterceptor header+base-URL-from-store, AuthValidator 200/401, LibraryMapper) + instrumented kompakt28 (LibraryDao flow + pin-survives-resync, DeltaWorker full-pull→no-op delta, MangaDetailScreen render+pin). assembleDebug + testDebugUnitTest green. SERVER FIX (in scope, approved): src/proxy.ts now exempts /api/v1 — it was redirecting bearer-only (cookieless) clients to /login before the route's getSessionFromRequest ran, blocking ALL native API. CARRY-FORWARD: (1) one authed OkHttpClient + host-rewrite AuthInterceptor (placeholder baseUrl) serves BOTH Retrofit and Coil — covers get the bearer for free, no custom Fetcher; (2) VolumeEntity.pinned is the hinge — applyDelta insert-ignores then updates server fields only, never clobbering pinned; CH.5 extends the detail status pill with download status; (3) instrumented Room/worker/Compose tests are local-only (kompakt28); CI = assembleDebug + testDebugUnitTest (JVM) — path-filtered android/** ‖ docs/** skip the web Docker build; (4) android:usesCleartextTraffic=true (self-hosted HTTP, emulator→10.0.2.2) + WorkManager default initializer removed in manifest for Hilt Configuration.Provider; (5) NO early `return` in a @Composable — it imbalances Compose's group stack (crash); guard = MangaDetailScreenTest.
 
 ### CH.5 — FLASHCARDS BODY  ⛓  (pillar track, forks after CH.1)
 ▶ENTRY: F.1 proven viable (CH.1).

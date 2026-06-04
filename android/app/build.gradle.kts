@@ -64,6 +64,11 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    // Room exports v1 schema JSON here; the androidTest asset dir lets MigrationTestHelper read it.
+    sourceSets {
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
 }
 
 dependencies {
@@ -106,6 +111,10 @@ dependencies {
 
     implementation(libs.androidx.work.runtime.ktx)
 
+    // CH.4 client data plane: Coil covers (authed OkHttp) + EncryptedSharedPreferences token store.
+    implementation(libs.coil.compose)
+    implementation(libs.androidx.security.crypto)
+
     // Flashcards (F.1 spike): Anki Rust backend AAR — bundles arm64-v8a librsdroid.so
     // and ~2665 pre-generated anki.* protobuf classes (no Wire/protoc codegen needed).
     implementation(libs.anki.backend)
@@ -116,11 +125,18 @@ dependencies {
     testImplementation("org.json:json:20240303")
     // Host-JVM tier: bundles librsdroid.dylib/.so + RustBackendLoader.ensureSetup().
     testImplementation(libs.anki.backend.testing)
+    // CH.4: MockWebServer for AuthInterceptor/AuthValidator JVM tests; coroutines-test for flows.
+    testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.compose.ui.test.junit4)
+    // CH.4: Room DAO/flow + WorkManager worker instrumented tests.
+    androidTestImplementation(libs.room.testing)
+    androidTestImplementation(libs.androidx.work.testing)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
 }
@@ -136,4 +152,7 @@ configurations.all {
 
 kapt {
     correctErrorTypes = true
+    arguments {
+        arg("room.schemaLocation", "$projectDir/schemas")
+    }
 }

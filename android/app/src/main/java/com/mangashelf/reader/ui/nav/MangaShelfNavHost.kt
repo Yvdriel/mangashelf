@@ -18,36 +18,39 @@ import com.mangashelf.reader.flashcards.ui.review.ReviewRoute
 import com.mangashelf.reader.flashcards.ui.settings.SchedulerSettingsRoute
 import com.mangashelf.reader.flashcards.ui.stats.HeatmapRoute
 import com.mangashelf.reader.ui.downloads.DownloadsScreen
-import com.mangashelf.reader.ui.library.LibraryScreen
-import com.mangashelf.reader.ui.manga.MangaDetailScreen
-import com.mangashelf.reader.ui.onboarding.OnboardingScreen
+import com.mangashelf.reader.ui.library.LibraryRoute
+import com.mangashelf.reader.ui.manga.MangaDetailRoute
+import com.mangashelf.reader.ui.onboarding.OnboardingRoute
 import com.mangashelf.reader.ui.reader.ReaderScreen
 import com.mangashelf.reader.ui.settings.SettingsScreen
 
 /**
- * App nav graph. Transitions disabled (e-ink: no animation, instant repaint).
- * Destinations are 2.1 placeholders wired to prove navigation; real screens land later.
+ * App nav graph. Transitions disabled (e-ink: no animation, instant repaint). [startDestination]
+ * is Library when the device is already onboarded (token persisted), else Onboarding.
  */
 @Composable
-fun MangaShelfNavHost(navController: NavHostController) {
+fun MangaShelfNavHost(
+    navController: NavHostController,
+    startDestination: String = Routes.ONBOARDING,
+) {
     NavHost(
         navController = navController,
-        startDestination = Routes.ONBOARDING,
+        startDestination = startDestination,
         enterTransition = { EnterTransition.None },
         exitTransition = { ExitTransition.None },
         popEnterTransition = { EnterTransition.None },
         popExitTransition = { ExitTransition.None },
     ) {
         composable(Routes.ONBOARDING) {
-            OnboardingScreen(onContinue = {
+            OnboardingRoute(onConnected = {
                 navController.navigate(Routes.LIBRARY) {
                     popUpTo(Routes.ONBOARDING) { inclusive = true }
                 }
             })
         }
         composable(Routes.LIBRARY) {
-            LibraryScreen(
-                onOpenManga = { navController.navigate(Routes.MANGA_DETAIL) },
+            LibraryRoute(
+                onOpenManga = { mangaId -> navController.navigate(Routes.mangaDetail(mangaId)) },
                 onDownloads = { navController.navigate(Routes.DOWNLOADS) },
                 onSettings = { navController.navigate(Routes.SETTINGS) },
                 onFlashcards = { navController.navigate(Routes.FLASHCARDS_REVIEW) },
@@ -56,8 +59,11 @@ fun MangaShelfNavHost(navController: NavHostController) {
                 onImportExport = { navController.navigate(Routes.FLASHCARDS_IMPORT_EXPORT) },
             )
         }
-        composable(Routes.MANGA_DETAIL) {
-            MangaDetailScreen(
+        composable(
+            Routes.MANGA_DETAIL,
+            arguments = listOf(navArgument(Routes.MANGA_ID_ARG) { type = NavType.IntType }),
+        ) {
+            MangaDetailRoute(
                 onRead = { navController.navigate(Routes.READER) },
                 onBack = { navController.popBackStack() },
             )

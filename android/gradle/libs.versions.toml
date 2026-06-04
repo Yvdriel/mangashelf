@@ -33,6 +33,10 @@ retrofit = "2.11.0"
 okhttp = "4.12.0"
 # Background work
 work = "2.9.1"
+# Image loading — Coil 2.x (last 2.x line; Coil 3 needs Kotlin 2). CH.4 covers.
+coil = "2.7.0"
+# Secure storage — EncryptedSharedPreferences (bearer token + server URL). CH.4.
+securityCrypto = "1.1.0-alpha06"
 # Dictionary — romaji↔kana (pure-Kotlin WanaKana v4 port, MIT). CH.2 D1.2.
 wanakana = "1.1.1"
 # Flashcards — Anki Rust backend (rsdroid), bundles arm64-v8a librsdroid.so + pre-gen proto.
@@ -75,10 +79,16 @@ retrofit-converter-kotlinx-serialization = { module = "com.squareup.retrofit2:co
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 okhttp-logging = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "okhttp" }
 androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "securityCrypto" }
 wanakana-core = { module = "dev.esnault.wanakana:wanakana-core", version.ref = "wanakana" }
 anki-backend = { module = "io.github.david-allison:anki-android-backend", version.ref = "ankiBackend" }
 anki-backend-testing = { module = "io.github.david-allison:anki-android-backend-testing", version.ref = "ankiBackend" }
 junit = { module = "junit:junit", version.ref = "junit" }
+okhttp-mockwebserver = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "okhttp" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+androidx-work-testing = { module = "androidx.work:work-testing", version.ref = "work" }
+room-testing = { module = "androidx.room:room-testing", version.ref = "room" }
 androidx-test-junit = { module = "androidx.test.ext:junit", version.ref = "androidxJunit" }
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
 androidx-test-core = { module = "androidx.test:core", version.ref = "androidxTestCore" }

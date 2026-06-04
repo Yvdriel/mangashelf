@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+    # The Android client lives under android/** and has its own workflow; docs are inert.
+    # Skip the Docker/Next.js build when a push touches only those (CH.4 6.3 path filter).
+    paths-ignore:
+      - "android/**"
+      - "docs/**"
 
 env:
   REGISTRY: ghcr.io

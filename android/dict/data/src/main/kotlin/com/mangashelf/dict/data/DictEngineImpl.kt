@@ -170,6 +170,9 @@ class DictEngineImpl @Inject constructor(
         }
     }
 
+    override suspend fun radicals(): List<com.mangashelf.dict.data.model.RadicalRow> =
+        withContext(Dispatchers.IO) { mutex.withLock { dao.radicalsWithStrokes() } }
+
     override suspend fun kanjiByRadicals(radicals: Set<String>): List<String> = withContext(Dispatchers.IO) {
         mutex.withLock {
             if (radicals.isEmpty()) emptyList() else dao.kanjiByRadicalIntersect(radicals.toList())

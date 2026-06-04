@@ -56,6 +56,13 @@ class DictEngineContractTest {
     }
 
     @Test
+    fun radicals_listedWithStrokes() = runBlocking {
+        val rads = engine.radicals()
+        assertTrue("radical grid populated", rads.size >= 100)
+        assertEquals(9, rads.first { it.radical == "食" }.strokes)
+    }
+
+    @Test
     fun kanjiByRadicals_intersect_includesSelf() = runBlocking {
         val chars = engine.kanjiByRadicals(setOf("食"))
         assertTrue("食 contains its own radical", chars.contains("食"))

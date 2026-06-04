@@ -96,6 +96,9 @@ dependencies {
     implementation(libs.room.ktx)
     kapt(libs.room.compiler)
 
+    // Dictionary pillar data layer (CH.6): DictEngine over the prebaked dict.db.
+    implementation(project(":dict:data"))
+
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.kotlinx.serialization)
     implementation(libs.okhttp)

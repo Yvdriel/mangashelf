@@ -143,12 +143,19 @@ ITEMS:
 - [x] D1.3 L ◈    prebaked dict.db + DAO + lookup()/scan() → D1.5 D1.6
 - [x] D1.5 S ◈    English FTS + wildcard/#tag parser        → D1.6
 - [x] D1.6 M ◈    entry/kanji/kanjiByRadicals/compounds/examples → D2.* D3.1
-- [x] D2.1 M ◈    StructuredContent renderer (model+flatten+cardBackHtml; Compose view→6b) → D2.2 D2.3
-- [ ] D2.2 M ⇉    search screen                            →
-- [ ] D2.3 M ⇉    entry detail screen                      → D3.1 D3.2
-- [ ] D2.4 M ⇉    kanji detail (KanjiVG SVG 📵-verdict→CH.11) →
-- [ ] D2.5 M ⇉    kana table screen                        →
-- [ ] D2.6 M ⇉    radical search screen                    →
+- [x] D2.1 M ◈    StructuredContent renderer (model+flatten+cardBackHtml + Compose StructuredContentText) → D2.2 D2.3
+- [x] D2.2 M ⇉    search screen                            →
+- [x] D2.3 M ⇉    entry detail screen                      → D3.1 D3.2
+- [x] D2.4 M ⇉    kanji detail (KanjiVG SVG render 📵→CH.11; shows path + info) →
+- [x] D2.5 M ⇉    kana table screen                        →
+- [x] D2.6 M ⇉    radical search screen                    →
+✅ CH.6 6b DONE 2026-06-04 (same branch). 5 dict Compose screens (search/entry/kanji/kana/radical)
+  fanned to 5 subagents (disjoint dict/ui/<screen>/ leaves; main owns Routes/NavHost/DI/StructuredContentText).
+  Each = Route + @HiltViewModel + stateless screen + Compose UI test. 9 dict UI instrumented tests GREEN
+  on kompakt28-2 (stateless screens, no DB needed). :app→:dict:data wired; :dict:engine exposed `api`
+  (ConjugationTable/rulesToConditions leak through the contract); added DictEngine.radicals(). KanjiVG
+  stroke-order SVG render stays 📵 (kanji screen shows the asset path + info; render verdict→CH.11/D2.4).
+  Dict routes navigable but only launched from the 3-section shell (D3.3/CH.9). CH.6 ■EXIT met.
 ✅ CH.6 6a DONE 2026-06-04 (branch MUDITA-chapter-6-dict off mudita-port; worktree-iso). 6a ■: :dict:data
   module — `DictEngine` contract (lookup/scan/searchEnglish/search/entry/kanji/kanjiByRadicals/
   compounds/examples/conjugate/cardBackHtml) over the prebaked dict-trim.db (929 MB), + D2.1 render

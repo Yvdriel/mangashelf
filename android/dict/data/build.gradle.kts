@@ -44,7 +44,9 @@ android {
 }
 
 dependencies {
-    implementation(project(":dict:engine"))
+    // api: the DictEngine contract exposes engine types (ConjugationTable, Cond, rulesToConditions)
+    // to consumers (:app entry/kanji screens), so they must be on the consumer classpath.
+    api(project(":dict:engine"))
     implementation(project(":dict:romaji"))
 
     implementation(libs.kotlinx.coroutines.android)

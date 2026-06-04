@@ -6,6 +6,7 @@ import com.mangashelf.dict.data.json.DictJson
 import com.mangashelf.dict.data.model.DictionaryRow
 import com.mangashelf.dict.data.model.FrequencyRow
 import com.mangashelf.dict.data.model.KanjiRow
+import com.mangashelf.dict.data.model.RadicalRow
 import com.mangashelf.dict.data.model.SentenceRow
 import com.mangashelf.dict.data.model.TermRow
 
@@ -101,6 +102,11 @@ internal class DictDao(private val conn: SQLiteConnection) {
         "$TERM_COLS WHERE expressionReverse GLOB ? ORDER BY score DESC LIMIT ?",
         bind = { st -> st.bindText(1, pattern); st.bindLong(2, limit.toLong()) },
     ) { st -> termRow(st) }
+
+    /** All radicals with their stroke counts, for the radical-search grid (D2.6). */
+    fun radicalsWithStrokes(): List<RadicalRow> = query(
+        "SELECT radical, strokes FROM radical ORDER BY strokes, radical",
+    ) { st -> RadicalRow(st.getText(0), if (st.isNull(1)) null else st.getLong(1).toInt()) }
 
     /** Alt forms: all rows sharing a Yomitan [seq]uence (e.g. 食べる / 喰べる). */
     fun findTermsBySequence(seq: Int): List<TermRow> = query(

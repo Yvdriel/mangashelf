@@ -38,6 +38,9 @@ interface DictEngine {
     /** KANJIDIC2 detail + KanjiVG asset path + "appears in" compounds. */
     suspend fun kanji(ch: String): KanjiDetail?
 
+    /** All radicals with stroke counts, for the radical-search grid (D2.6). */
+    suspend fun radicals(): List<com.mangashelf.dict.data.model.RadicalRow>
+
     /** Characters containing ALL of [radicals] (intersection over kanji_radical). */
     suspend fun kanjiByRadicals(radicals: Set<String>): List<String>
 

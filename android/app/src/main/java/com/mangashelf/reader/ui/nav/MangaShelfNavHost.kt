@@ -13,6 +13,7 @@ import com.mangashelf.reader.dict.ui.kana.KanaTableRoute
 import com.mangashelf.reader.dict.ui.kanji.KanjiRoute
 import com.mangashelf.reader.dict.ui.radical.RadicalRoute
 import com.mangashelf.reader.dict.ui.search.SearchRoute
+import com.mangashelf.reader.flashcards.ui.home.FlashcardsHomeRoute
 import com.mangashelf.reader.flashcards.ui.importexport.ImportExportRoute
 import com.mangashelf.reader.flashcards.ui.review.ReviewRoute
 import com.mangashelf.reader.flashcards.ui.settings.SchedulerSettingsRoute
@@ -49,11 +50,17 @@ fun MangaShelfNavHost(
             })
         }
         composable(Routes.LIBRARY) {
+            // Reader-section root. Flashcards entries moved to the Flashcards section (D3.3).
             LibraryRoute(
                 onOpenManga = { mangaId -> navController.navigate(Routes.mangaDetail(mangaId)) },
                 onDownloads = { navController.navigate(Routes.DOWNLOADS) },
                 onSettings = { navController.navigate(Routes.SETTINGS) },
-                onFlashcards = { navController.navigate(Routes.FLASHCARDS_REVIEW) },
+            )
+        }
+        composable(Routes.FLASHCARDS_HOME) {
+            // Flashcards-section root (D3.3): the entries that used to sit in the Library header row.
+            FlashcardsHomeRoute(
+                onReview = { navController.navigate(Routes.FLASHCARDS_REVIEW) },
                 onScheduler = { navController.navigate(Routes.FLASHCARDS_SETTINGS) },
                 onHeatmap = { navController.navigate(Routes.FLASHCARDS_HEATMAP) },
                 onImportExport = { navController.navigate(Routes.FLASHCARDS_IMPORT_EXPORT) },

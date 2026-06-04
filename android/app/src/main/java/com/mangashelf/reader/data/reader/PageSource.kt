@@ -28,6 +28,9 @@ class PageSource(file: File, private val targetWidthPx: Int) : Closeable {
 
     val pageCount: Int get() = entryNames.size
 
+    /** The CBZ entry name (with any folder prefix) at [index] — for mapping pages to mokuro by file. */
+    fun entryName(index: Int): String = entryNames[index]
+
     /** Source pixel dimensions of [index] (decode-bounds only, no allocation) — for zoom grid math. */
     fun pageBounds(index: Int): Size {
         val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }

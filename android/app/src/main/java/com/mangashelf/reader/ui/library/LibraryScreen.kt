@@ -33,10 +33,6 @@ fun LibraryRoute(
     onOpenManga: (Int) -> Unit,
     onDownloads: () -> Unit,
     onSettings: () -> Unit,
-    onFlashcards: () -> Unit = {},
-    onScheduler: () -> Unit = {},
-    onHeatmap: () -> Unit = {},
-    onImportExport: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -47,17 +43,13 @@ fun LibraryRoute(
         onRefresh = viewModel::refresh,
         onDownloads = onDownloads,
         onSettings = onSettings,
-        onFlashcards = onFlashcards,
-        onScheduler = onScheduler,
-        onHeatmap = onHeatmap,
-        onImportExport = onImportExport,
     )
 }
 
 /**
  * Library list: a row per manga (cover + title + volume count). Covers load via Coil over the authed
- * client. Stateless so it can be Compose-tested without Hilt. Reader-pillar nav lives in a compact
- * header row (the 3-section shell lands in CH.9).
+ * client. Stateless so it can be Compose-tested without Hilt. This is the Reader section of the
+ * 3-section shell (D3.3); the Flashcards entries moved to the Flashcards section.
  */
 @Composable
 fun LibraryScreen(
@@ -67,10 +59,6 @@ fun LibraryScreen(
     onRefresh: () -> Unit,
     onDownloads: () -> Unit,
     onSettings: () -> Unit,
-    onFlashcards: () -> Unit,
-    onScheduler: () -> Unit,
-    onHeatmap: () -> Unit,
-    onImportExport: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -80,14 +68,6 @@ fun LibraryScreen(
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
             ButtonMMD(onClick = onDownloads) { TextMMD("Downloads") }
-            Spacer(Modifier.width(8.dp))
-            ButtonMMD(onClick = onFlashcards) { TextMMD("Flashcards") }
-            Spacer(Modifier.width(8.dp))
-            ButtonMMD(onClick = onScheduler) { TextMMD("Scheduler") }
-            Spacer(Modifier.width(8.dp))
-            ButtonMMD(onClick = onHeatmap) { TextMMD("Heatmap") }
-            Spacer(Modifier.width(8.dp))
-            ButtonMMD(onClick = onImportExport) { TextMMD("Import / Export") }
             Spacer(Modifier.width(8.dp))
             ButtonMMD(onClick = onSettings) { TextMMD("Settings") }
         }

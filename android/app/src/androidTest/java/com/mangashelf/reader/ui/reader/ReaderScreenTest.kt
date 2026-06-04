@@ -39,7 +39,7 @@ class ReaderScreenTest {
                     onNext = { calls.next++ },
                     onToggleBar = { calls.toggle++ },
                     onEnterZoom = { calls.zoom++ },
-                    onOcrBlockDoubleTap = { calls.ocr++ },
+                    onOcrBlockSelected = { _, _ -> calls.ocr++ },
                     onBack = {},
                 )
             }
@@ -81,12 +81,15 @@ class ReaderScreenTest {
         assertEquals(1, calls.zoom)
     }
 
+    // CH.9/O.2: the OCR seam moved to per-block double-tap on the overlay (OcrOverlayTest covers
+    // firing). With no overlay present, a page-level double-tap fires nothing and — critically —
+    // still must not flip the page (the double-tap debounce the reader relies on).
     @Test
-    fun doubleTap_firesOcrSeam_withoutFlippingPage() {
+    fun doubleTap_doesNotFlipPage_andDoesNotFireOcr_whenNoOverlay() {
         val calls = setScreen()
         rule.onNodeWithTag(READER_SURFACE_TAG).performTouchInput { doubleClick(Offset(width * 0.8f, height * 0.5f)) }
         rule.waitForIdle()
-        assertEquals(1, calls.ocr)
-        assertEquals("double-tap must not also advance the page", 0, calls.next)
+        assertEquals("double-tap must not advance the page", 0, calls.next)
+        assertEquals("no overlay → no OCR selection", 0, calls.ocr)
     }
 }

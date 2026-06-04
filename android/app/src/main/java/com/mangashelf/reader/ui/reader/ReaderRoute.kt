@@ -19,9 +19,11 @@ fun ReaderRoute(
         onNext = viewModel::next,
         onToggleBar = viewModel::toggleBar,
         onEnterZoom = viewModel::enterZoom,
-        onOcrBlockDoubleTap = viewModel::onOcrBlockDoubleTap,
+        onOcrBlockSelected = viewModel::onOcrBlockSelected,
         onBack = onBack,
         onZoomSwipe = viewModel::onZoomSwipe,
         onExitZoom = viewModel::exitZoom,
+        onCreateCard = viewModel::onCreateCard,
+        onDismissPopup = viewModel::onDismissPopup,
     )
 }

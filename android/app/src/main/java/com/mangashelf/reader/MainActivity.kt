@@ -12,7 +12,7 @@ import androidx.navigation.compose.rememberNavController
 import com.mangashelf.reader.data.reader.VolumeKeys
 import com.mangashelf.reader.data.remote.AuthEventBus
 import com.mangashelf.reader.data.store.TokenStore
-import com.mangashelf.reader.ui.nav.MangaShelfNavHost
+import com.mangashelf.reader.ui.nav.AppShell
 import com.mangashelf.reader.ui.nav.Routes
 import com.mangashelf.reader.ui.reader.ReaderKeyBus
 import com.mangashelf.reader.ui.theme.MangaShelfTheme
@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
-                    MangaShelfNavHost(navController, startDestination = start)
+                    AppShell(navController, startDestination = start)
                 }
             }
         }

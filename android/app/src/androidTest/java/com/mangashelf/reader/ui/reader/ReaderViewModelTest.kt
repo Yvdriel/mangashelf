@@ -13,6 +13,14 @@ import com.mangashelf.reader.data.reader.PageSourceFactory
 import com.mangashelf.reader.data.reader.SwipeDirection
 import com.mangashelf.reader.data.reader.ZoomState
 import com.mangashelf.reader.data.repo.ProgressRepository
+import com.mangashelf.reader.ocr.MokuroBlock
+import com.mangashelf.reader.ocr.MokuroDoc
+import com.mangashelf.reader.ocr.MokuroPage
+import com.mangashelf.reader.ocr.FakeDictEngine
+import com.mangashelf.reader.ocr.MokuroSourceFactory
+import com.mangashelf.reader.ocr.OcrCardMiner
+import com.mangashelf.reader.ocr.scanResultOf
+import com.mangashelf.reader.ocr.termHit
 import com.mangashelf.reader.ui.nav.Routes
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -38,6 +46,16 @@ class ReaderViewModelTest {
     private lateinit var progress: ProgressRepository
     private lateinit var cbz: File
     private lateinit var factory: PageSourceFactory
+
+    // No `.mokuro` sidecar in these CH.7 fixtures → overlay simply stays off (OCR is exercised by
+    // the O.2 OcrOverlay/ReaderScreen OCR tests with a real mokuro fixture).
+    private val mokuro = MokuroSourceFactory { _, _ -> null }
+
+    // Fake miner so reader tests don't open the Anki backend (D3.2 covers the real mining round-trip).
+    private val miner = OcrCardMiner { _, _, _, _, _, _ -> 1L }
+
+    // Fake dictionary (no dict.db); the real deinflection lookup is proven by the CH.9 gate.
+    private val dict = FakeDictEngine()
 
     @Before
     fun setup() {
@@ -79,7 +97,7 @@ class ReaderViewModelTest {
     @Test
     fun resumesFromStoredProgress() {
         runBlocking { progress.write(mangaId = 1, volumeNumber = 1, page = 4, now = 1) }
-        val vm = ReaderViewModel(handle(), progress, factory, ReaderKeyBus())
+        val vm = ReaderViewModel(handle(), progress, factory, mokuro, miner, dict, ReaderKeyBus())
         waitUntil { vm.state.value.bitmap != null }
         assertEquals(4, vm.state.value.pageIndex)
         assertEquals(10, vm.state.value.pageCount)
@@ -87,7 +105,7 @@ class ReaderViewModelTest {
 
     @Test
     fun next_advancesAndPersists_soReopenResumes() {
-        val vm = ReaderViewModel(handle(), progress, factory, ReaderKeyBus())
+        val vm = ReaderViewModel(handle(), progress, factory, mokuro, miner, dict, ReaderKeyBus())
         waitUntil { vm.state.value.bitmap != null }
         assertEquals(0, vm.state.value.pageIndex)
 
@@ -98,7 +116,7 @@ class ReaderViewModelTest {
 
     @Test
     fun prev_clampsAtFirstPage() {
-        val vm = ReaderViewModel(handle(), progress, factory, ReaderKeyBus())
+        val vm = ReaderViewModel(handle(), progress, factory, mokuro, miner, dict, ReaderKeyBus())
         waitUntil { vm.state.value.bitmap != null }
         vm.prev()
         // Stays on page 0 — no underflow.
@@ -108,7 +126,7 @@ class ReaderViewModelTest {
 
     @Test
     fun enterZoom_centersAndDecodesRegion() {
-        val vm = ReaderViewModel(handle(), progress, factory, ReaderKeyBus())
+        val vm = ReaderViewModel(handle(), progress, factory, mokuro, miner, dict, ReaderKeyBus())
         waitUntil { vm.state.value.bitmap != null }
         vm.enterZoom()
         waitUntil { vm.state.value.regionBitmap != null }
@@ -117,7 +135,7 @@ class ReaderViewModelTest {
 
     @Test
     fun swipe_movesCell_andRedecodes() {
-        val vm = ReaderViewModel(handle(), progress, factory, ReaderKeyBus())
+        val vm = ReaderViewModel(handle(), progress, factory, mokuro, miner, dict, ReaderKeyBus())
         waitUntil { vm.state.value.bitmap != null }
         vm.enterZoom()
         waitUntil { vm.state.value.regionBitmap != null }
@@ -128,7 +146,7 @@ class ReaderViewModelTest {
 
     @Test
     fun pageTurn_isInert_whileZoomed() {
-        val vm = ReaderViewModel(handle(), progress, factory, ReaderKeyBus())
+        val vm = ReaderViewModel(handle(), progress, factory, mokuro, miner, dict, ReaderKeyBus())
         waitUntil { vm.state.value.bitmap != null }
         vm.enterZoom()
         waitUntil { vm.state.value.regionBitmap != null }
@@ -140,7 +158,7 @@ class ReaderViewModelTest {
 
     @Test
     fun exitZoom_restoresFullView_onSamePage() {
-        val vm = ReaderViewModel(handle(), progress, factory, ReaderKeyBus())
+        val vm = ReaderViewModel(handle(), progress, factory, mokuro, miner, dict, ReaderKeyBus())
         waitUntil { vm.state.value.bitmap != null }
         vm.enterZoom()
         waitUntil { vm.state.value.regionBitmap != null }
@@ -157,7 +175,7 @@ class ReaderViewModelTest {
         val missing = PageSourceFactory { _, _ ->
             PageSource(File(ctx.cacheDir, "absent-${System.nanoTime()}.cbz"), 480)
         }
-        val vm = ReaderViewModel(handle(), progress, missing, ReaderKeyBus())
+        val vm = ReaderViewModel(handle(), progress, missing, mokuro, miner, dict, ReaderKeyBus())
         waitUntil { vm.state.value.error != null }
         assertEquals("no page is shown on failure", null, vm.state.value.bitmap)
     }
@@ -166,8 +184,63 @@ class ReaderViewModelTest {
     fun corruptCbz_emitsError() {
         val bad = File(ctx.cacheDir, "corrupt-fixture.cbz").apply { writeText("this is not a zip") }
         val badFactory = PageSourceFactory { _, _ -> PageSource(bad, 480) }
-        val vm = ReaderViewModel(handle(), progress, badFactory, ReaderKeyBus())
+        val vm = ReaderViewModel(handle(), progress, badFactory, mokuro, miner, dict, ReaderKeyBus())
         waitUntil { vm.state.value.error != null }
         bad.delete()
+    }
+
+    // O.3: a `.mokuro` mapped to page 0 surfaces blocks; selecting one opens the popup with the
+    // block's joined text and a native crop decoded from the local CBZ page (no server call).
+    @Test
+    fun ocrBlockSelected_opensPopup_withSentenceAndNativeCrop() {
+        val block = MokuroBlock(box = listOf(10, 10, 200, 200), vertical = true, fontSize = 20.0, lines = listOf("食べた"))
+        val doc = MokuroDoc(pages = listOf(MokuroPage(imgWidth = 480, imgHeight = 720, imgPath = "001.png", blocks = listOf(block))))
+        val withMokuro = MokuroSourceFactory { _, _ -> doc }
+        val vm = ReaderViewModel(handle(), progress, factory, withMokuro, miner, dict, ReaderKeyBus())
+        waitUntil { vm.state.value.ocrPage != null }
+        vm.onOcrBlockSelected(block, 0)
+        waitUntil { vm.state.value.ocrPopup?.image != null }
+        assertEquals("食べた", vm.state.value.ocrPopup?.sentence)
+    }
+
+    // D3.1: the selected bubble text is run through DictEngine.scan(); the resolved hits (here a
+    // conjugated → dictionary-form result with its reason chain) land in the popup state.
+    @Test
+    fun ocrBlockSelected_runsLookup_andPopulatesResults() {
+        val block = MokuroBlock(box = listOf(10, 10, 200, 200), vertical = true, fontSize = 20.0, lines = listOf("食べた"))
+        val doc = MokuroDoc(pages = listOf(MokuroPage(imgWidth = 480, imgHeight = 720, imgPath = "001.png", blocks = listOf(block))))
+        val withMokuro = MokuroSourceFactory { _, _ -> doc }
+        val resolving = FakeDictEngine(
+            scanResults = listOf(scanResultOf("食べた", listOf(termHit("食べる", "たべる", "to eat", reasons = listOf("past"))))),
+        )
+        val vm = ReaderViewModel(handle(), progress, factory, withMokuro, miner, resolving, ReaderKeyBus())
+        waitUntil { vm.state.value.ocrPage != null }
+        vm.onOcrBlockSelected(block, 0)
+        waitUntil { vm.state.value.ocrPopup?.results?.isNotEmpty() == true }
+        val hit = vm.state.value.ocrPopup!!.results[0].hits[0]
+        assertEquals("食べる", hit.record.expression)
+        assertEquals(listOf("past"), hit.reasons)
+    }
+
+    // D3.2: mining a resolved hit feeds `cardBackHtml(hit, senseIndex)` into the F.8 seam as the
+    // Definition field (so the review back is non-blank — see MiningNoteTest for the round-trip).
+    @Test
+    fun createCard_minesWithCardBackHtmlDefinition() {
+        val block = MokuroBlock(box = listOf(10, 10, 200, 200), vertical = true, fontSize = 20.0, lines = listOf("食べた"))
+        val doc = MokuroDoc(pages = listOf(MokuroPage(imgWidth = 480, imgHeight = 720, imgPath = "001.png", blocks = listOf(block))))
+        val withMokuro = MokuroSourceFactory { _, _ -> doc }
+        val resolving = FakeDictEngine(
+            scanResults = listOf(scanResultOf("食べた", listOf(termHit("食べる", "たべる", "to eat", reasons = listOf("past"))))),
+            cardBack = { hit, _ -> "<b>${hit.record.expression}</b>" },
+        )
+        var capturedDefinition: String? = "UNSET"
+        val capturing = OcrCardMiner { _, _, _, def, _, _ -> capturedDefinition = def; 1L }
+        val vm = ReaderViewModel(handle(), progress, factory, withMokuro, capturing, resolving, ReaderKeyBus())
+        waitUntil { vm.state.value.ocrPage != null }
+        vm.onOcrBlockSelected(block, 0)
+        waitUntil { vm.state.value.ocrPopup?.results?.isNotEmpty() == true }
+        vm.onCreateCard(vm.state.value.ocrPopup!!.results[0].hits[0], null)
+        waitUntil { capturedDefinition != "UNSET" }
+        assertEquals("<b>食べる</b>", capturedDefinition)
     }
 }

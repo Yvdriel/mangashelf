@@ -47,7 +47,7 @@ class ReaderZoomScreenTest {
                     onNext = { nextCount++ },
                     onToggleBar = {},
                     onEnterZoom = {},
-                    onOcrBlockDoubleTap = {},
+                    onOcrBlockSelected = { _, _ -> },
                     onBack = {},
                     onZoomSwipe = { lastSwipe = it },
                     onExitZoom = {},

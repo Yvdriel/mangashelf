@@ -38,8 +38,12 @@ class ReaderViewModel @Inject constructor(
     private val keyBus: ReaderKeyBus,
 ) : ViewModel() {
 
-    private val mangaId: Int = savedStateHandle[Routes.READER_ARG_MANGA_ID] ?: 0
-    private val volumeNumber: Int = savedStateHandle[Routes.READER_ARG_VOLUME] ?: 0
+    private val mangaId: Int = checkNotNull(savedStateHandle[Routes.READER_ARG_MANGA_ID]) {
+        "Reader requires a ${Routes.READER_ARG_MANGA_ID} nav argument"
+    }
+    private val volumeNumber: Int = checkNotNull(savedStateHandle[Routes.READER_ARG_VOLUME]) {
+        "Reader requires a ${Routes.READER_ARG_VOLUME} nav argument"
+    }
 
     private var source: PageSource? = null
 

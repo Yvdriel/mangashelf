@@ -63,7 +63,8 @@ fun MangaShelfNavHost(
             Routes.MANGA_DETAIL,
             arguments = listOf(navArgument(Routes.MANGA_ID_ARG) { type = NavType.IntType }),
         ) { entry ->
-            val mangaId = entry.arguments?.getInt(Routes.MANGA_ID_ARG) ?: 0
+            val mangaId = checkNotNull(entry.arguments) { "manga detail requires nav arguments" }
+                .getInt(Routes.MANGA_ID_ARG)
             MangaDetailRoute(
                 onRead = { volumeNumber -> navController.navigate(Routes.reader(mangaId, volumeNumber)) },
                 onBack = { navController.popBackStack() },

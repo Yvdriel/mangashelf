@@ -32,6 +32,13 @@ interface VolumeDao {
     @Query("UPDATE volume SET pinned = :pinned WHERE mangaId = :mangaId AND volumeNumber = :volumeNumber")
     suspend fun setPinned(mangaId: Int, volumeNumber: Int, pinned: Boolean)
 
+    /** Maps the server's churning `volumeId` back to the client-stable volumeNumber (CH.8/5.4 pull). */
+    @Query("SELECT volumeNumber FROM volume WHERE mangaId = :mangaId AND serverVolumeId = :serverVolumeId LIMIT 1")
+    suspend fun findVolumeNumber(mangaId: Int, serverVolumeId: Int): Int?
+
+    @Query("UPDATE volume SET pinned = 0")
+    suspend fun unpinAll()
+
     @Query("DELETE FROM volume")
     suspend fun clearVolumes()
 }

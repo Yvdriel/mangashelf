@@ -6,9 +6,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import com.mangashelf.reader.data.reader.VolumeKeys
+import com.mangashelf.reader.data.remote.AuthEventBus
 import com.mangashelf.reader.data.store.TokenStore
 import com.mangashelf.reader.ui.nav.MangaShelfNavHost
 import com.mangashelf.reader.ui.nav.Routes
@@ -26,6 +28,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var readerKeyBus: ReaderKeyBus
 
+    @Inject
+    lateinit var authEventBus: AuthEventBus
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Skip onboarding when a validated token is already persisted (survives restart).
@@ -34,6 +39,14 @@ class MainActivity : ComponentActivity() {
             MangaShelfTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val navController = rememberNavController()
+                    // 6.2: a revoked token (any 401) boots back to Onboarding. Downloads on disk stay.
+                    LaunchedEffect(Unit) {
+                        authEventBus.events.collect {
+                            navController.navigate(Routes.ONBOARDING) {
+                                popUpTo(navController.graph.id) { inclusive = true }
+                            }
+                        }
+                    }
                     MangaShelfNavHost(navController, startDestination = start)
                 }
             }

@@ -2,6 +2,8 @@ package com.mangashelf.reader.di
 
 import android.content.Context
 import androidx.work.WorkManager
+import com.mangashelf.reader.sync.ProgressSyncScheduler
+import com.mangashelf.reader.sync.WorkProgressSyncScheduler
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -21,4 +23,9 @@ object WorkModule {
     @Singleton
     fun provideWorkManager(@ApplicationContext context: Context): WorkManager =
         WorkManager.getInstance(context)
+
+    @Provides
+    @Singleton
+    fun provideProgressSyncScheduler(workManager: WorkManager): ProgressSyncScheduler =
+        WorkProgressSyncScheduler(workManager)
 }

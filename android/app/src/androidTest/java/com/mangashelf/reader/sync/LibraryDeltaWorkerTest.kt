@@ -55,6 +55,11 @@ class LibraryDeltaWorkerTest {
             error?.let { throw it }
             return if (changedSince == null) FULL else EMPTY
         }
+        override suspend fun archive(mangaId: Int, volumeNumber: Int) = throw UnsupportedOperationException()
+        override suspend fun ocr(mangaId: Int, volumeNumber: Int) = throw UnsupportedOperationException()
+        override suspend fun pushProgress(request: com.mangashelf.reader.data.remote.dto.ProgressBatchRequestDto) = throw UnsupportedOperationException()
+        override suspend fun getProgress(changedSince: Long?) =
+            com.mangashelf.reader.data.remote.dto.ProgressPullResponseDto(serverTime = 0)
         companion object {
             const val SENTINEL = -1L
             val FULL = LibraryResponseDto(
@@ -95,7 +100,9 @@ class LibraryDeltaWorkerTest {
                     appContext: Context,
                     workerClassName: String,
                     workerParameters: WorkerParameters,
-                ): ListenableWorker = LibraryDeltaWorker(appContext, workerParameters, api, repo, syncState)
+                ): ListenableWorker = LibraryDeltaWorker(
+                    appContext, workerParameters, api, repo, db.progressDao(), db.volumeDao(), syncState,
+                )
             })
             .build()
 

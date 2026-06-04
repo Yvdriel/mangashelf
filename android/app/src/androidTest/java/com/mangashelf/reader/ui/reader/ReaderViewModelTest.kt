@@ -1,5 +1,6 @@
 package com.mangashelf.reader.ui.reader
 
+import android.content.Context
 import android.os.SystemClock
 import androidx.lifecycle.SavedStateHandle
 import androidx.room.Room
@@ -32,6 +33,7 @@ import java.util.zip.ZipOutputStream
 @RunWith(AndroidJUnit4::class)
 class ReaderViewModelTest {
 
+    private lateinit var ctx: Context
     private lateinit var db: MangaShelfDatabase
     private lateinit var progress: ProgressRepository
     private lateinit var cbz: File
@@ -39,9 +41,9 @@ class ReaderViewModelTest {
 
     @Before
     fun setup() {
-        val ctx = InstrumentationRegistry.getInstrumentation().targetContext
+        ctx = InstrumentationRegistry.getInstrumentation().targetContext
         db = Room.inMemoryDatabaseBuilder(ctx, MangaShelfDatabase::class.java).build()
-        progress = ProgressRepository(db.progressDao())
+        progress = ProgressRepository(db.progressDao()) {} // no-op sync scheduler in tests
         cbz = File(ctx.cacheDir, "reader-vm-fixture.cbz")
         ZipOutputStream(cbz.outputStream()).use { zip ->
             for (i in 1..10) {
@@ -145,5 +147,27 @@ class ReaderViewModelTest {
         vm.exitZoom()
         assertEquals(ZoomState.FullView, vm.state.value.zoom)
         assertEquals(0, vm.state.value.pageIndex)
+    }
+
+    // CH.8/5.1 crash fix (CH.7 carry-forward): a missing or corrupt CBZ must surface as an error
+    // UiState, never crash the app (PageSource's ZipFile ctor throws uncaught on bad IO).
+
+    @Test
+    fun missingCbz_emitsError_doesNotCrash() {
+        val missing = PageSourceFactory { _, _ ->
+            PageSource(File(ctx.cacheDir, "absent-${System.nanoTime()}.cbz"), 480)
+        }
+        val vm = ReaderViewModel(handle(), progress, missing, ReaderKeyBus())
+        waitUntil { vm.state.value.error != null }
+        assertEquals("no page is shown on failure", null, vm.state.value.bitmap)
+    }
+
+    @Test
+    fun corruptCbz_emitsError() {
+        val bad = File(ctx.cacheDir, "corrupt-fixture.cbz").apply { writeText("this is not a zip") }
+        val badFactory = PageSourceFactory { _, _ -> PageSource(bad, 480) }
+        val vm = ReaderViewModel(handle(), progress, badFactory, ReaderKeyBus())
+        waitUntil { vm.state.value.error != null }
+        bad.delete()
     }
 }

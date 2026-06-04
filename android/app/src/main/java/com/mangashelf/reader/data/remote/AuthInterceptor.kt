@@ -14,8 +14,15 @@ import okhttp3.Response
  *
  * When no credentials are stored the request is left untouched (it will fail / 401), which only
  * happens before onboarding completes.
+ *
+ * 401 recovery (CH.8/6.2): a revoked token surfaces as a 401 on any call — the interceptor clears the
+ * stored credentials and signals [AuthEventBus] so the UI routes back to Onboarding. The cached
+ * archives on disk are left alone (the user keeps reading offline; only the server link is severed).
  */
-class AuthInterceptor(private val tokenStore: TokenStore) : Interceptor {
+class AuthInterceptor(
+    private val tokenStore: TokenStore,
+    private val authEventBus: AuthEventBus,
+) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val original = chain.request()
@@ -33,6 +40,11 @@ class AuthInterceptor(private val tokenStore: TokenStore) : Interceptor {
 
         tokenStore.token()?.let { builder.header("Authorization", "Bearer $it") }
 
-        return chain.proceed(builder.build())
+        val response = chain.proceed(builder.build())
+        if (response.code == 401) {
+            tokenStore.clear()
+            authEventBus.notifyUnauthorized()
+        }
+        return response
     }
 }

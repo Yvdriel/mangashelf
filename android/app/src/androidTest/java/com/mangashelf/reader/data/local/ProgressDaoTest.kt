@@ -23,7 +23,7 @@ class ProgressDaoTest {
     fun setup() {
         val ctx = InstrumentationRegistry.getInstrumentation().targetContext
         db = Room.inMemoryDatabaseBuilder(ctx, MangaShelfDatabase::class.java).build()
-        repo = ProgressRepository(db.progressDao())
+        repo = ProgressRepository(db.progressDao()) {} // no-op sync scheduler in tests
     }
 
     @After

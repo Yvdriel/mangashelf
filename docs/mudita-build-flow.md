@@ -186,7 +186,7 @@ ITEMS:
 RECIPE: ◈ SOLO serial 4.1→4.2→4.3 (longest sub-chain, isolate vs ctx exhaustion). 4.1 TDD'd by subagent vs fixture CBZs (adb push) while 4.2 stubbed. fed by FIXTURES → lands before sync exists.
 RISK:   4.1 bitmap OOM · 4.2 tap-zone gated by 0.4 · 4.3 gesture-on-eink.
 ITEMS:
-- [ ] 4.1  M ◈    CBZ page source + LRU + decodeRegion     → 4.2 4.3
+- [x] 4.1  M ◈    CBZ page source + LRU + decodeRegion     → 4.2 4.3
 - [ ] 4.2  L ◈⚔  ReaderScreen tap-nav + progress write    → 4.3 5.3 O.2
 - [ ] 4.3  M ◈    long-press 9-position zoom               → O.2
 

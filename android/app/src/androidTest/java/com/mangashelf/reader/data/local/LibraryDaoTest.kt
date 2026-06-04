@@ -67,8 +67,9 @@ class LibraryDaoTest {
     }
 
     @Test
-    fun database_opensAtVersion1() {
-        assertEquals(1, db.openHelper.readableDatabase.version)
+    fun database_opensAtCurrentVersion() {
+        // CH.7 4.2 bumped the schema to v2 (added the `progress` table via MIGRATION_1_2).
+        assertEquals(2, db.openHelper.readableDatabase.version)
     }
 
     @Test

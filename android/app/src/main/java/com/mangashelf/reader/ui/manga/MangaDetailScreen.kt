@@ -26,7 +26,7 @@ import com.mudita.mmd.components.text.TextMMD
 /** Route wrapper: binds [MangaDetailViewModel] to the stateless screen (CH.4 3.4). */
 @Composable
 fun MangaDetailRoute(
-    onRead: () -> Unit,
+    onRead: (volumeNumber: Int) -> Unit,
     onBack: () -> Unit,
     viewModel: MangaDetailViewModel = hiltViewModel(),
 ) {
@@ -47,13 +47,15 @@ fun MangaDetailRoute(
 fun MangaDetailScreen(
     manga: MangaWithVolumes?,
     onTogglePin: (volumeNumber: Int, currentlyPinned: Boolean) -> Unit,
-    onRead: () -> Unit,
+    onRead: (volumeNumber: Int) -> Unit,
     onBack: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             ButtonMMD(onClick = onBack) { TextMMD("Back") }
-            ButtonMMD(onClick = onRead) { TextMMD("Read") }
+            // Opens the lowest-numbered volume; per-volume rows open a specific volume.
+            val firstVolume = manga?.volumes?.minByOrNull { it.volumeNumber }?.volumeNumber
+            ButtonMMD(onClick = { firstVolume?.let(onRead) }) { TextMMD("Read") }
         }
         Spacer(Modifier.height(16.dp))
 
@@ -66,7 +68,7 @@ fun MangaDetailScreen(
 
             LazyColumn(Modifier.fillMaxSize()) {
                 items(manga.volumes.sortedBy { it.volumeNumber }, key = { it.volumeNumber }) { volume ->
-                    VolumeRow(volume = volume, onTogglePin = onTogglePin)
+                    VolumeRow(volume = volume, onTogglePin = onTogglePin, onRead = onRead)
                 }
             }
         }
@@ -77,6 +79,7 @@ fun MangaDetailScreen(
 private fun VolumeRow(
     volume: VolumeEntity,
     onTogglePin: (Int, Boolean) -> Unit,
+    onRead: (Int) -> Unit,
 ) {
     Row(
         Modifier.fillMaxWidth().padding(vertical = 8.dp),
@@ -88,8 +91,12 @@ private fun VolumeRow(
             Spacer(Modifier.width(12.dp))
             TextMMD(if (volume.pinned) "[Pinned]" else "[Available]")
         }
-        ButtonMMD(onClick = { onTogglePin(volume.volumeNumber, volume.pinned) }) {
-            TextMMD(if (volume.pinned) "Unpin" else "Pin")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            ButtonMMD(onClick = { onRead(volume.volumeNumber) }) { TextMMD("Read") }
+            Spacer(Modifier.width(8.dp))
+            ButtonMMD(onClick = { onTogglePin(volume.volumeNumber, volume.pinned) }) {
+                TextMMD(if (volume.pinned) "Unpin" else "Pin")
+            }
         }
     }
 }

@@ -23,6 +23,11 @@ hilt = "2.51.1"
 hiltExt = "1.2.0"
 # Persistence
 room = "2.6.1"
+# Dictionary data layer (CH.6 D1.3) — androidx.sqlite BundledSQLiteDriver: ships a modern
+# SQLite (3.49+, FTS5 compiled, arm64) usable STANDALONE without Room. API-28 framework SQLite
+# lacks FTS5, and Room 2.6.1 can't model the gloss_fts virtual table or load the hand-baked DB
+# (no room_master_table) → raw DAO over the bundled driver instead.
+androidxSqlite = "2.5.2"
 # Network
 retrofit = "2.11.0"
 okhttp = "4.12.0"
@@ -63,6 +68,8 @@ androidx-hilt-compiler = { module = "androidx.hilt:hilt-compiler", version.ref =
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+androidx-sqlite = { module = "androidx.sqlite:sqlite", version.ref = "androidxSqlite" }
+androidx-sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "androidxSqlite" }
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
 retrofit-converter-kotlinx-serialization = { module = "com.squareup.retrofit2:converter-kotlinx-serialization", version.ref = "retrofit" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
@@ -82,6 +89,7 @@ compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest", ve
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }

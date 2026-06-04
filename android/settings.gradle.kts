@@ -11,8 +11,14 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // Mudita Mindful Design (MMD) e-ink Compose component library
-        maven { url = uri("https://mudita.jfrog.io/artifactory/mmd-release") }
+        // Mudita Mindful Design (MMD) e-ink Compose component library.
+        // Scoped to com.mudita — the jfrog repo returns an HTML 404 page for any other
+        // coordinate, which Gradle fails to parse as a POM ("Already seen doctype") and
+        // aborts resolution instead of falling through to the next repo.
+        maven {
+            url = uri("https://mudita.jfrog.io/artifactory/mmd-release")
+            content { includeGroup("com.mudita") }
+        }
     }
 }
 
@@ -22,3 +28,6 @@ include(":app")
 // off-device. :dict:engine = deinflector + forward conjugator; :dict:romaji = wanakana.
 include(":dict:engine")
 include(":dict:romaji")
+// CH.6 — Android data layer over the prebaked dict.db: DAO + DictEngine contract +
+// StructuredContent model. Raw SupportSQLite (requery, bundled FTS5), NOT Room.
+include(":dict:data")

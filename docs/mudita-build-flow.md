@@ -129,6 +129,12 @@ ITEMS:
 - [x] F.8  S ⇉    card-creation (mining) API               → O.3 D3.2
 ✅ CH.5 DONE 2026-06-03 (worktree MUDITA-chapter-5-flashcards off mudita-port). ■EXIT met: collection+"MangaShelf Mining" notetype+DI · FSRS review (4 buttons labelled w/ backend intervals) · undo · scheduler settings · total-reviews heatmap · .colpkg/.apkg import-export w/ full revlog · F.8 addMiningNote exposed (OCR/dict hook). All on rsdroid 0.1.50-anki25.02, NO proto codegen (AAR-bundled anki.* protos + named Backend wrappers). 14 instrumented tests GREEN on kompakt28 + JVM unit. TDD anchors GREEN: F.3 FSRS interval vector (fresh-card Easy graduate ~16d = FSRS-5 w[3], not SM-2 4d) + F.7 colpkg round-trip (revlog intact). CARRY-FORWARD: (1) updateDeckConfigs trailing booleans in proto field order = newCardsIgnoreReviewLimit(7)/fsrs(8)/applyAllParentLimits(9)/fsrsReschedule(10) — fsrs is the 2nd bool; (2) set TMPDIR (Os.setenv) to app-private dir before any backend file op — rslib export/media default to non-writable /data/local/tmp; (3) exportCollectionPackage CLOSES the collection (snapshot) → reopen after; (4) Noto Sans JP bundled res/font (system font Latin-only). 📵 e-ink/CJK/furigana render parity for F.3/F.6 pooled to CH.11.
 
+> ⚠ OPEN BUG — F.3 SRS interval bleed across cards (found 2026-06-03 emulator test; needs separate investigation BEFORE CH.9 wires real mining).
+> **Symptom:** the 4 next-interval labels look like they carry over from the previously-answered card. Reviewer pressed Good on card A (e.g. "Good 1d"), advanced, and card B — only its 2nd exposure — showed an already-advanced "Good 5d", as if B inherited A's progression instead of showing B's own next-interval.
+> **Unknown (the whole point of the investigation):** is it (a) display-only — the button-label strings computed from the prior/stale card's scheduling states and not recomputed for the new card — or (b) real scheduling — `answerCard` applied to the wrong card id / state not reset between cards (would corrupt the revlog)? (a) is cosmetic, (b) is data-corrupting; must distinguish.
+> **Suspect code:** `flashcards/ui/review/ReviewViewModel.kt` (per-card state reset between `nextCard()` calls), `CollectionRepository.nextCard()` / `answerCard()` (which card id the next-interval strings + the answer are bound to; `setCurrentDeck` → `getQueuedCards` → describe-next-states ordering).
+> **TEST REQUIREMENT:** use a deck with **≥5 distinct cards**. With few cards the (re)learning queue re-shows the same card and reorders, which masks the bleed. Walk each distinct card to its true Nth exposure, record the 4 intervals shown per card, and cross-check against desktop Anki (or the backend `describe_next_states`) for the same answer sequence. Confirm the revlog `ivl`/`ease` written matches what was displayed.
+
 ### CH.6 — DICT ENGINE SPINE + UI  ⛓→⇉  (pillar track, forks after CH.2; split 6a/6b if ctx tight)
 ▶ENTRY: dict.db baked + D1.1/D1.2/D1.4 (CH.2) done · 2.1 (CH.1) for Compose.
 ■EXIT:  dict.data (prebaked db + DAO + lookup()/scan()) · FTS+wildcard/#tag · full entry/kanji/kanjiByRadicals/compounds/examples contract · StructuredContent renderer + search/entry/kanji/kana/radical screens.
@@ -185,6 +191,7 @@ ITEMS:
 - [ ] D3.1  S ⇉    wire OCR popup lookup pane (scan/entry)  →
 - [ ] D3.2  S ⇉    dict entry → F.8 addMiningNote (cardBackHtml) →
 - [ ] D3.3  S ◈    3-section app shell (nav-host, LAST)     →
+NOTE (from CH.5 emulator demo 2026-06-03): F.3 review renderer maps the **Mining notetype** field order (Sentence/Image/Definition/Source) — non-Mining notes render the back BLANK below the divider. So D3.2 mining MUST addNote into the Mining notetype (cardBackHtml → Definition field), else mined cards review with an empty back. Verify in the CH.9 end-to-end demo. (FSRS/scheduling/import were unaffected — front + 4-button intervals + answer-advance all green.)
 
 ### CH.10 — OPTIONAL  ⇉  (ungated, opportunistic)
 ▶ENTRY: D1.1/D0.2 (CH.2) for D3.4.

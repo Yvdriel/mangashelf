@@ -8,12 +8,19 @@ object Routes {
     const val LIBRARY = "library"
     const val MANGA_ID_ARG = "mangaId"
     const val MANGA_DETAIL = "manga_detail/{$MANGA_ID_ARG}"
-    const val READER = "reader"
     const val DOWNLOADS = "downloads"
     const val SETTINGS = "settings"
 
+    /** Reader (CH.7 4.2). Carries the natural key so it can resolve the CBZ + key local progress. */
+    const val READER_ARG_MANGA_ID = "mangaId"
+    const val READER_ARG_VOLUME = "volumeNumber"
+    const val READER = "reader/{$READER_ARG_MANGA_ID}/{$READER_ARG_VOLUME}"
+
     /** Builds the manga-detail route for a concrete manga id. */
     fun mangaDetail(mangaId: Int) = "manga_detail/$mangaId"
+
+    /** Builds the reader route for a concrete (manga, volume). */
+    fun reader(mangaId: Int, volumeNumber: Int) = "reader/$mangaId/$volumeNumber"
 
     /** Flashcards (F.3–F.7). Temporary top-level entries until the 3-section shell (D3.3). */
     const val FLASHCARDS_REVIEW = "flashcards/review"

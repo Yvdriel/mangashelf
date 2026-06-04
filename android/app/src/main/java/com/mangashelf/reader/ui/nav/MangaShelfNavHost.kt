@@ -21,7 +21,7 @@ import com.mangashelf.reader.ui.downloads.DownloadsScreen
 import com.mangashelf.reader.ui.library.LibraryRoute
 import com.mangashelf.reader.ui.manga.MangaDetailRoute
 import com.mangashelf.reader.ui.onboarding.OnboardingRoute
-import com.mangashelf.reader.ui.reader.ReaderScreen
+import com.mangashelf.reader.ui.reader.ReaderRoute
 import com.mangashelf.reader.ui.settings.SettingsScreen
 
 /**
@@ -62,14 +62,21 @@ fun MangaShelfNavHost(
         composable(
             Routes.MANGA_DETAIL,
             arguments = listOf(navArgument(Routes.MANGA_ID_ARG) { type = NavType.IntType }),
-        ) {
+        ) { entry ->
+            val mangaId = entry.arguments?.getInt(Routes.MANGA_ID_ARG) ?: 0
             MangaDetailRoute(
-                onRead = { navController.navigate(Routes.READER) },
+                onRead = { volumeNumber -> navController.navigate(Routes.reader(mangaId, volumeNumber)) },
                 onBack = { navController.popBackStack() },
             )
         }
-        composable(Routes.READER) {
-            ReaderScreen(onBack = { navController.popBackStack() })
+        composable(
+            Routes.READER,
+            arguments = listOf(
+                navArgument(Routes.READER_ARG_MANGA_ID) { type = NavType.IntType },
+                navArgument(Routes.READER_ARG_VOLUME) { type = NavType.IntType },
+            ),
+        ) {
+            ReaderRoute(onBack = { navController.popBackStack() })
         }
         composable(Routes.DOWNLOADS) {
             DownloadsScreen(onBack = { navController.popBackStack() })

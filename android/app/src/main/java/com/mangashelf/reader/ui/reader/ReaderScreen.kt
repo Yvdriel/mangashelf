@@ -1,8 +1,10 @@
 package com.mangashelf.reader.ui.reader
 
 import android.graphics.Bitmap
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,25 +22,32 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.mangashelf.reader.data.reader.ReaderGestures
+import com.mangashelf.reader.data.reader.SwipeDirection
 import com.mangashelf.reader.data.reader.TapZone
+import com.mangashelf.reader.data.reader.ZoomState
 import com.mudita.mmd.components.buttons.ButtonMMD
 import com.mudita.mmd.components.text.TextMMD
 
-/** Presentational reader state for the current full-page view (zoom is layered on in 4.3). */
+/** Presentational reader state. [zoom] drives the FullView↔Zoom render; [regionBitmap] is the cell. */
 data class ReaderUiState(
     val pageIndex: Int,
     val pageCount: Int,
     val bitmap: Bitmap?,
     val topBarVisible: Boolean,
+    val zoom: ZoomState = ZoomState.FullView,
+    val regionBitmap: Bitmap? = null,
 )
 
 const val READER_SURFACE_TAG = "reader-surface"
 
+private const val SWIPE_THRESHOLD_PX = 48f
+
 /**
- * Stateless paged reader (CH.7 4.2). Tap zones (LEFT=prev / RIGHT=next / thin TOP-CENTER=toggle bar)
- * are resolved by [com.mangashelf.reader.data.reader.ReaderGestures]; long-press enters zoom (4.3);
- * double-tap is the OCR-lookup seam wired no-op for CH.9. Stateless so it is Compose-testable with
- * fixtures (mirrors MangaDetailScreen / ReviewScreen). No early `return` — guard with if/else.
+ * Stateless paged reader (CH.7 4.2/4.3). FullView: tap zones (LEFT=prev / RIGHT=next / thin
+ * TOP-CENTER=toggle bar), long-press enters zoom, double-tap is the OCR-lookup seam (no-op, CH.9),
+ * single-tap debounced behind the double-tap timeout. Zoom: page-turn + OCR seam are DISABLED; only
+ * a directional swipe (snap to neighbour cell) or back-to-full. Stateless for Compose testing; no
+ * early `return` — guard with if/else.
  */
 @Composable
 fun ReaderScreen(
@@ -49,26 +58,59 @@ fun ReaderScreen(
     onEnterZoom: () -> Unit,
     onOcrBlockDoubleTap: () -> Unit,
     onBack: () -> Unit,
+    onZoomSwipe: (SwipeDirection) -> Unit = {},
+    onExitZoom: () -> Unit = {},
 ) {
+    val zoom = state.zoom
     Box(
         Modifier
             .fillMaxSize()
             .background(Color.White)
-            .testTag(READER_SURFACE_TAG)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    // onTap fires only after the double-tap timeout, so a double-tap never also flips.
-                    onTap = { offset ->
-                        when (ReaderGestures.zoneFor(offset.x, offset.y, size.width.toFloat(), size.height.toFloat())) {
-                            TapZone.Prev -> onPrev()
-                            TapZone.Next -> onNext()
-                            TapZone.ToggleBar -> onToggleBar()
-                        }
-                    },
-                    onDoubleTap = { onOcrBlockDoubleTap() }, // OCR-lookup seam (CH.9 / O.2)
-                    onLongPress = { onEnterZoom() },
-                )
-            },
+            .testTag(READER_SURFACE_TAG),
+    ) {
+        if (zoom is ZoomState.Zoom) {
+            ZoomLayer(regionBitmap = state.regionBitmap, position = zoom.position, onZoomSwipe = onZoomSwipe)
+            BackHandler { onExitZoom() } // back exits zoom to the same page
+        } else {
+            FullPageLayer(
+                state = state,
+                onPrev = onPrev,
+                onNext = onNext,
+                onToggleBar = onToggleBar,
+                onEnterZoom = onEnterZoom,
+                onOcrBlockDoubleTap = onOcrBlockDoubleTap,
+                onBack = onBack,
+            )
+            BackHandler { onBack() }
+        }
+    }
+}
+
+@Composable
+private fun FullPageLayer(
+    state: ReaderUiState,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    onToggleBar: () -> Unit,
+    onEnterZoom: () -> Unit,
+    onOcrBlockDoubleTap: () -> Unit,
+    onBack: () -> Unit,
+) {
+    Box(
+        Modifier.fillMaxSize().pointerInput(Unit) {
+            detectTapGestures(
+                // onTap fires only after the double-tap timeout, so a double-tap never also flips.
+                onTap = { offset ->
+                    when (ReaderGestures.zoneFor(offset.x, offset.y, size.width.toFloat(), size.height.toFloat())) {
+                        TapZone.Prev -> onPrev()
+                        TapZone.Next -> onNext()
+                        TapZone.ToggleBar -> onToggleBar()
+                    }
+                },
+                onDoubleTap = { onOcrBlockDoubleTap() }, // OCR-lookup seam (CH.9 / O.2)
+                onLongPress = { onEnterZoom() },
+            )
+        },
     ) {
         val bmp = state.bitmap
         if (bmp != null) {
@@ -91,6 +133,37 @@ fun ReaderScreen(
                 ButtonMMD(onClick = onBack) { TextMMD("Back") }
                 TextMMD("${state.pageIndex + 1} / ${state.pageCount}")
             }
+        }
+    }
+}
+
+@Composable
+private fun ZoomLayer(
+    regionBitmap: Bitmap?,
+    position: Int,
+    onZoomSwipe: (SwipeDirection) -> Unit,
+) {
+    Box(
+        Modifier.fillMaxSize().pointerInput(position) {
+            var dx = 0f
+            var dy = 0f
+            detectDragGestures(
+                onDragStart = { dx = 0f; dy = 0f },
+                onDrag = { change, drag -> change.consume(); dx += drag.x; dy += drag.y },
+                // Snap to the neighbour cell in the swiped direction — no continuous panning.
+                onDragEnd = { SwipeDirection.dominant(dx, dy, SWIPE_THRESHOLD_PX)?.let(onZoomSwipe) },
+            )
+        },
+    ) {
+        if (regionBitmap != null) {
+            Image(
+                bitmap = regionBitmap.asImageBitmap(),
+                contentDescription = "zoom cell $position",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            TextMMD("Loading…")
         }
     }
 }

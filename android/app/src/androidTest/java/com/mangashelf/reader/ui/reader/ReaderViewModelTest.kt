@@ -9,6 +9,8 @@ import com.mangashelf.reader.data.local.MangaShelfDatabase
 import com.mangashelf.reader.data.reader.LargePng
 import com.mangashelf.reader.data.reader.PageSource
 import com.mangashelf.reader.data.reader.PageSourceFactory
+import com.mangashelf.reader.data.reader.SwipeDirection
+import com.mangashelf.reader.data.reader.ZoomState
 import com.mangashelf.reader.data.repo.ProgressRepository
 import com.mangashelf.reader.ui.nav.Routes
 import kotlinx.coroutines.runBlocking
@@ -99,6 +101,49 @@ class ReaderViewModelTest {
         vm.prev()
         // Stays on page 0 — no underflow.
         SystemClock.sleep(150)
+        assertEquals(0, vm.state.value.pageIndex)
+    }
+
+    @Test
+    fun enterZoom_centersAndDecodesRegion() {
+        val vm = ReaderViewModel(handle(), progress, factory, ReaderKeyBus())
+        waitUntil { vm.state.value.bitmap != null }
+        vm.enterZoom()
+        waitUntil { vm.state.value.regionBitmap != null }
+        assertEquals(ZoomState.Zoom(4), vm.state.value.zoom)
+    }
+
+    @Test
+    fun swipe_movesCell_andRedecodes() {
+        val vm = ReaderViewModel(handle(), progress, factory, ReaderKeyBus())
+        waitUntil { vm.state.value.bitmap != null }
+        vm.enterZoom()
+        waitUntil { vm.state.value.regionBitmap != null }
+        vm.onZoomSwipe(SwipeDirection.Right)
+        waitUntil { vm.state.value.zoom == ZoomState.Zoom(5) }
+        assertEquals(true, vm.state.value.regionBitmap != null)
+    }
+
+    @Test
+    fun pageTurn_isInert_whileZoomed() {
+        val vm = ReaderViewModel(handle(), progress, factory, ReaderKeyBus())
+        waitUntil { vm.state.value.bitmap != null }
+        vm.enterZoom()
+        waitUntil { vm.state.value.regionBitmap != null }
+        vm.next()
+        SystemClock.sleep(150)
+        assertEquals(0, vm.state.value.pageIndex)
+        assertEquals(ZoomState.Zoom(4), vm.state.value.zoom)
+    }
+
+    @Test
+    fun exitZoom_restoresFullView_onSamePage() {
+        val vm = ReaderViewModel(handle(), progress, factory, ReaderKeyBus())
+        waitUntil { vm.state.value.bitmap != null }
+        vm.enterZoom()
+        waitUntil { vm.state.value.regionBitmap != null }
+        vm.exitZoom()
+        assertEquals(ZoomState.FullView, vm.state.value.zoom)
         assertEquals(0, vm.state.value.pageIndex)
     }
 }

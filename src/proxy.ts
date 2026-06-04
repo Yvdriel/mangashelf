@@ -12,9 +12,13 @@ export async function proxy(request: NextRequest) {
   const isAuthPage =
     pathname.startsWith("/login") || pathname.startsWith("/setup");
   const isAuthAPI = pathname.startsWith("/api/auth");
+  // Native-client API (`/api/v1`) authenticates itself per-route via bearer token (or cookie)
+  // through getSessionFromRequest; it must bypass the cookie-only gate below, otherwise a
+  // bearer-only client (no session cookie) is redirected to /login before the handler runs.
+  const isV1Api = pathname.startsWith("/api/v1");
 
-  // Always allow auth API routes
-  if (isAuthAPI) {
+  // Always allow auth + native-client API routes
+  if (isAuthAPI || isV1Api) {
     return NextResponse.next();
   }
 

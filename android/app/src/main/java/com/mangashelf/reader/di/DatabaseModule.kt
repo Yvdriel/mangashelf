@@ -2,7 +2,9 @@ package com.mangashelf.reader.di
 
 import android.content.Context
 import androidx.room.Room
+import com.mangashelf.reader.data.local.DownloadDao
 import com.mangashelf.reader.data.local.MIGRATION_1_2
+import com.mangashelf.reader.data.local.MIGRATION_2_3
 import com.mangashelf.reader.data.local.MangaDao
 import com.mangashelf.reader.data.local.MangaShelfDatabase
 import com.mangashelf.reader.data.local.ProgressDao
@@ -23,7 +25,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): MangaShelfDatabase =
         Room.databaseBuilder(context, MangaShelfDatabase::class.java, "mangashelf.db")
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .build()
 
     @Provides
@@ -34,4 +36,7 @@ object DatabaseModule {
 
     @Provides
     fun provideProgressDao(db: MangaShelfDatabase): ProgressDao = db.progressDao()
+
+    @Provides
+    fun provideDownloadDao(db: MangaShelfDatabase): DownloadDao = db.downloadDao()
 }

@@ -28,12 +28,23 @@ class SyncStateStore @Inject constructor(
         store.edit { it[KEY] = value }
     }
 
-    /** Resets the cursor (Clear Cache / test isolation) so the next sync is a full pull. */
+    /** Cursor for the progress pull (CH.8/5.4); null → pull all progress on first run. */
+    suspend fun lastProgressSyncedAt(): Long? = store.data.map { it[PROGRESS_KEY] }.first()
+
+    suspend fun setLastProgressSyncedAt(value: Long) {
+        store.edit { it[PROGRESS_KEY] = value }
+    }
+
+    /** Resets the cursors (Clear Cache / test isolation) so the next sync is a full pull. */
     suspend fun clear() {
-        store.edit { it.remove(KEY) }
+        store.edit {
+            it.remove(KEY)
+            it.remove(PROGRESS_KEY)
+        }
     }
 
     private companion object {
         val KEY = longPreferencesKey("last_synced_at")
+        val PROGRESS_KEY = longPreferencesKey("last_progress_synced_at")
     }
 }

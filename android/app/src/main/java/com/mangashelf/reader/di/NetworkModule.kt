@@ -2,6 +2,7 @@ package com.mangashelf.reader.di
 
 import android.content.Context
 import coil.ImageLoader
+import com.mangashelf.reader.data.remote.AuthEventBus
 import com.mangashelf.reader.data.remote.AuthInterceptor
 import com.mangashelf.reader.data.remote.MangaShelfApi
 import com.mangashelf.reader.data.store.EncryptedTokenStore
@@ -45,9 +46,9 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(tokenStore: TokenStore): OkHttpClient =
+    fun provideOkHttpClient(tokenStore: TokenStore, authEventBus: AuthEventBus): OkHttpClient =
         OkHttpClient.Builder()
-            .addInterceptor(AuthInterceptor(tokenStore))
+            .addInterceptor(AuthInterceptor(tokenStore, authEventBus))
             .addInterceptor(
                 HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC },
             )

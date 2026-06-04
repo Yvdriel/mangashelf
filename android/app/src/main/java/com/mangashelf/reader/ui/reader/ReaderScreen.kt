@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,7 +29,11 @@ import com.mangashelf.reader.data.reader.ZoomState
 import com.mudita.mmd.components.buttons.ButtonMMD
 import com.mudita.mmd.components.text.TextMMD
 
-/** Presentational reader state. [zoom] drives the FullView↔Zoom render; [regionBitmap] is the cell. */
+/**
+ * Presentational reader state. [zoom] drives the FullView↔Zoom render; [regionBitmap] is the cell.
+ * [error] is non-null when the volume couldn't be opened/decoded (missing or corrupt CBZ) — the
+ * screen shows a message instead of crashing (CH.8/5.1 fix for the CH.7 eager-open crash).
+ */
 data class ReaderUiState(
     val pageIndex: Int,
     val pageCount: Int,
@@ -36,6 +41,7 @@ data class ReaderUiState(
     val topBarVisible: Boolean,
     val zoom: ZoomState = ZoomState.FullView,
     val regionBitmap: Bitmap? = null,
+    val error: String? = null,
 )
 
 const val READER_SURFACE_TAG = "reader-surface"
@@ -68,7 +74,10 @@ fun ReaderScreen(
             .background(Color.White)
             .testTag(READER_SURFACE_TAG),
     ) {
-        if (zoom is ZoomState.Zoom) {
+        if (state.error != null) {
+            ErrorLayer(message = state.error, onBack = onBack)
+            BackHandler { onBack() }
+        } else if (zoom is ZoomState.Zoom) {
             ZoomLayer(regionBitmap = state.regionBitmap, position = zoom.position, onZoomSwipe = onZoomSwipe)
             BackHandler { onExitZoom() } // back exits zoom to the same page
         } else {
@@ -82,6 +91,22 @@ fun ReaderScreen(
                 onBack = onBack,
             )
             BackHandler { onBack() }
+        }
+    }
+}
+
+const val READER_ERROR_TAG = "reader-error"
+
+@Composable
+private fun ErrorLayer(message: String, onBack: () -> Unit) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            Modifier.fillMaxWidth().padding(24.dp).testTag(READER_ERROR_TAG),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            TextMMD(message)
+            ButtonMMD(onClick = onBack) { TextMMD("Back") }
         }
     }
 }

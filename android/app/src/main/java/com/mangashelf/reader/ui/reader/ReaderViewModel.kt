@@ -53,11 +53,17 @@ class ReaderViewModel @Inject constructor(
     init {
         keyBus.readerActive = true
         viewModelScope.launch {
-            val resume = progress.resumePage(mangaId, volumeNumber)
-            val opened = withContext(Dispatchers.IO) { pageSourceFactory.create(mangaId, volumeNumber) }
-            source = opened
-            val last = (opened.pageCount - 1).coerceAtLeast(0)
-            showPage(resume.coerceIn(0, last))
+            try {
+                val resume = progress.resumePage(mangaId, volumeNumber)
+                val opened = withContext(Dispatchers.IO) { pageSourceFactory.create(mangaId, volumeNumber) }
+                source = opened
+                val last = (opened.pageCount - 1).coerceAtLeast(0)
+                showPage(resume.coerceIn(0, last))
+            } catch (e: Exception) {
+                // Missing or corrupt archive (e.g. an absent/partial download): ZipFile ctor or a
+                // page decode threw. Surface an error state instead of crashing (CH.8/5.1).
+                _state.value = _state.value.copy(error = OPEN_ERROR)
+            }
         }
         viewModelScope.launch {
             keyBus.keys.collect { direction ->
@@ -115,7 +121,12 @@ class ReaderViewModel @Inject constructor(
 
     private suspend fun showPage(index: Int) {
         val src = source ?: return
-        val bitmap = withContext(Dispatchers.IO) { src.page(index) }
+        val bitmap = try {
+            withContext(Dispatchers.IO) { src.page(index) }
+        } catch (e: Exception) {
+            _state.value = _state.value.copy(error = OPEN_ERROR)
+            return
+        }
         _state.value = _state.value.copy(pageIndex = index, pageCount = src.pageCount, bitmap = bitmap)
         progress.write(mangaId, volumeNumber, index)
     }
@@ -137,5 +148,9 @@ class ReaderViewModel @Inject constructor(
         keyBus.readerActive = false
         _state.value.regionBitmap?.let { if (!it.isRecycled) it.recycle() }
         source?.close()
+    }
+
+    private companion object {
+        const val OPEN_ERROR = "Couldn't open this volume. It may be missing or still downloading — try re-pinning it."
     }
 }

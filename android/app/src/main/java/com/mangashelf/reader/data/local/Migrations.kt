@@ -21,3 +21,24 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         )
     }
 }
+
+/**
+ * v2 (CH.7 progress) → v3 (CH.8/5.1 downloads). Purely additive: creates `download_queue` and leaves
+ * `manga`/`volume`/`progress` (pins + reading position) untouched. SQL is verbatim from Room's
+ * exported `3.json` so [androidx.room.testing.MigrationTestHelper] validates the result exactly.
+ */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `download_queue` (" +
+                "`mangaId` INTEGER NOT NULL, " +
+                "`volumeNumber` INTEGER NOT NULL, " +
+                "`state` TEXT NOT NULL, " +
+                "`bytesDownloaded` INTEGER NOT NULL, " +
+                "`totalBytes` INTEGER NOT NULL, " +
+                "`errorMessage` TEXT, " +
+                "`updatedAt` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`mangaId`, `volumeNumber`))",
+        )
+    }
+}

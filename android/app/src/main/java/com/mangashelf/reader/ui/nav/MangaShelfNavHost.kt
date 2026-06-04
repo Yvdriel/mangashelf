@@ -17,12 +17,12 @@ import com.mangashelf.reader.flashcards.ui.importexport.ImportExportRoute
 import com.mangashelf.reader.flashcards.ui.review.ReviewRoute
 import com.mangashelf.reader.flashcards.ui.settings.SchedulerSettingsRoute
 import com.mangashelf.reader.flashcards.ui.stats.HeatmapRoute
-import com.mangashelf.reader.ui.downloads.DownloadsScreen
+import com.mangashelf.reader.ui.downloads.DownloadsRoute
 import com.mangashelf.reader.ui.library.LibraryRoute
 import com.mangashelf.reader.ui.manga.MangaDetailRoute
 import com.mangashelf.reader.ui.onboarding.OnboardingRoute
 import com.mangashelf.reader.ui.reader.ReaderRoute
-import com.mangashelf.reader.ui.settings.SettingsScreen
+import com.mangashelf.reader.ui.settings.SettingsRoute
 
 /**
  * App nav graph. Transitions disabled (e-ink: no animation, instant repaint). [startDestination]
@@ -80,10 +80,17 @@ fun MangaShelfNavHost(
             ReaderRoute(onBack = { navController.popBackStack() })
         }
         composable(Routes.DOWNLOADS) {
-            DownloadsScreen(onBack = { navController.popBackStack() })
+            DownloadsRoute(onBack = { navController.popBackStack() })
         }
         composable(Routes.SETTINGS) {
-            SettingsScreen(onBack = { navController.popBackStack() })
+            SettingsRoute(
+                onBack = { navController.popBackStack() },
+                onReonboard = {
+                    navController.navigate(Routes.ONBOARDING) {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                    }
+                },
+            )
         }
         composable(Routes.FLASHCARDS_REVIEW) {
             ReviewRoute(onBack = { navController.popBackStack() })

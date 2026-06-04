@@ -19,12 +19,17 @@ import com.mangashelf.reader.data.store.SyncStateStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import retrofit2.HttpException
+import retrofit2.Response
+import java.io.IOException
 
 /**
  * 3.2 acceptance (instrumented): the first run pulls the full library (changedSince == null) and
@@ -43,9 +48,11 @@ class LibraryDeltaWorkerTest {
     /** Returns a full library only on the initial (null) pull; an empty delta thereafter. */
     private class FakeApi : MangaShelfApi {
         var lastChangedSince: Long? = SENTINEL
+        var error: Throwable? = null
         override suspend fun whoami(): WhoamiDto = throw UnsupportedOperationException()
         override suspend fun library(changedSince: Long?): LibraryResponseDto {
             lastChangedSince = changedSince
+            error?.let { throw it }
             return if (changedSince == null) FULL else EMPTY
         }
         companion object {
@@ -105,5 +112,19 @@ class LibraryDeltaWorkerTest {
         assertEquals("second pull uses the stored cursor", 200L, api.lastChangedSince)
         assertEquals("library unchanged", 1, repo.observeLibrary().first().size)
         assertEquals(300L, syncState.lastSyncedAt())
+    }
+
+    @Test
+    fun httpClientError_failsFast_doesNotRetry() = runTest {
+        api.error = HttpException(
+            Response.error<Any>(401, "".toResponseBody("application/json".toMediaType())),
+        )
+        assertEquals(ListenableWorker.Result.failure(), buildWorker().doWork())
+    }
+
+    @Test
+    fun ioError_retries() = runTest {
+        api.error = IOException("offline")
+        assertEquals(ListenableWorker.Result.retry(), buildWorker().doWork())
     }
 }

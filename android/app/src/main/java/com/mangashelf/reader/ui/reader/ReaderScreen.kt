@@ -26,6 +26,9 @@ import com.mangashelf.reader.data.reader.ReaderGestures
 import com.mangashelf.reader.data.reader.SwipeDirection
 import com.mangashelf.reader.data.reader.TapZone
 import com.mangashelf.reader.data.reader.ZoomState
+import com.mangashelf.reader.ocr.MokuroBlock
+import com.mangashelf.reader.ocr.MokuroPage
+import com.mangashelf.reader.ocr.OcrOverlay
 import com.mudita.mmd.components.buttons.ButtonMMD
 import com.mudita.mmd.components.text.TextMMD
 
@@ -42,6 +45,25 @@ data class ReaderUiState(
     val zoom: ZoomState = ZoomState.FullView,
     val regionBitmap: Bitmap? = null,
     val error: String? = null,
+    /** Current page's mokuro blocks (O.2), or null when the volume has no `.mokuro` sidecar. */
+    val ocrPage: MokuroPage? = null,
+    /** Reader-settings toggle for the OCR overlay (shown only in FullView). */
+    val overlayVisible: Boolean = true,
+    /** The OCR lookup popup (O.3+), or null when closed. */
+    val ocrPopup: OcrPopupState? = null,
+)
+
+/**
+ * The OCR lookup popup state (O.3): the selected bubble's [sentence] and its native crop [image].
+ * D3.1 fills [results]/[loading] with the dictionary lookup; [status] flips to a confirmation after
+ * the card is mined (D3.2).
+ */
+data class OcrPopupState(
+    val sentence: String,
+    val image: Bitmap? = null,
+    val results: List<com.mangashelf.dict.data.model.ScanResult> = emptyList(),
+    val loading: Boolean = false,
+    val status: String? = null,
 )
 
 const val READER_SURFACE_TAG = "reader-surface"
@@ -62,10 +84,12 @@ fun ReaderScreen(
     onNext: () -> Unit,
     onToggleBar: () -> Unit,
     onEnterZoom: () -> Unit,
-    onOcrBlockDoubleTap: () -> Unit,
+    onOcrBlockSelected: (MokuroBlock, Int) -> Unit,
     onBack: () -> Unit,
     onZoomSwipe: (SwipeDirection) -> Unit = {},
     onExitZoom: () -> Unit = {},
+    onCreateCard: (com.mangashelf.dict.data.model.TermHit?, Int?) -> Unit = { _, _ -> },
+    onDismissPopup: () -> Unit = {},
 ) {
     val zoom = state.zoom
     Box(
@@ -87,10 +111,16 @@ fun ReaderScreen(
                 onNext = onNext,
                 onToggleBar = onToggleBar,
                 onEnterZoom = onEnterZoom,
-                onOcrBlockDoubleTap = onOcrBlockDoubleTap,
+                onOcrBlockSelected = onOcrBlockSelected,
                 onBack = onBack,
             )
             BackHandler { onBack() }
+        }
+
+        // O.3: the lookup popup overlays whatever layer is showing (only opened from FullView).
+        val popup = state.ocrPopup
+        if (popup != null) {
+            OcrLookupSheet(popup = popup, onCreateCard = onCreateCard, onDismiss = onDismissPopup)
         }
     }
 }
@@ -118,7 +148,7 @@ private fun FullPageLayer(
     onNext: () -> Unit,
     onToggleBar: () -> Unit,
     onEnterZoom: () -> Unit,
-    onOcrBlockDoubleTap: () -> Unit,
+    onOcrBlockSelected: (MokuroBlock, Int) -> Unit,
     onBack: () -> Unit,
 ) {
     Box(
@@ -132,7 +162,9 @@ private fun FullPageLayer(
                         TapZone.ToggleBar -> onToggleBar()
                     }
                 },
-                onDoubleTap = { onOcrBlockDoubleTap() }, // OCR-lookup seam (CH.9 / O.2)
+                // Empty handler keeps the double-tap debounce (so a double-tap never flips); the real
+                // OCR selection is per-block on the overlay below, which sits on top and wins the tap.
+                onDoubleTap = {},
                 onLongPress = { onEnterZoom() },
             )
         },
@@ -147,6 +179,14 @@ private fun FullPageLayer(
             )
         } else {
             TextMMD("Loading…")
+        }
+
+        // O.2: the OCR overlay overlays the page in FullView only (hidden while zoomed → cuts e-ink
+        // ghosting AND keeps double-tap inert when zoomed). Empty page areas fall through to the
+        // page-turn gesture above; per-block double-tap fires the lookup seam.
+        val ocr = state.ocrPage
+        if (ocr != null && state.overlayVisible && ocr.blocks.isNotEmpty()) {
+            OcrOverlay(page = ocr, onBlockSelect = onOcrBlockSelected)
         }
 
         if (state.topBarVisible) {

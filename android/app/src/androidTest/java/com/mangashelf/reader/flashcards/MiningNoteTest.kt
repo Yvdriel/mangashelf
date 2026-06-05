@@ -62,4 +62,29 @@ class MiningNoteTest {
             media.any { it.isFile && it.length() > 0 },
         )
     }
+
+    // CH.9 NOTE / blank-back guard: a note mined via addMiningNote (Mining notetype) must review
+    // with a NON-BLANK back — the Definition field maps to fields[2], so cardBackHtml lands on the
+    // back below the divider. A wrong notetype would render the back blank.
+    @Test
+    fun minedNote_reviewsWithNonBlankBack() = runBlocking {
+        val deckId = repo.bootstrap()
+        repo.addMiningNote(
+            deckId = deckId,
+            sentence = "食べた",
+            imageBytes = null,
+            imageFilename = "x.jpg",
+            definitionHtml = "<b>食べる</b> — to eat",
+            source = "Yotsuba Vol 1 p5",
+            tags = emptyList(),
+        )
+        val card = repo.nextCard(deckId)
+        assertTrue("a due card must be returned", card != null)
+        assertEquals("食べた", card!!.fields.sentence)
+        assertTrue(
+            "the back (Definition field) must render non-blank, got '${card.fields.definitionHtml}'",
+            card.fields.definitionHtml.contains("食べる"),
+        )
+        assertEquals("Yotsuba Vol 1 p5", card.fields.source)
+    }
 }

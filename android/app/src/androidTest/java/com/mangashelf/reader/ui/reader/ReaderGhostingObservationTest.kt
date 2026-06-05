@@ -54,7 +54,7 @@ class ReaderGhostingObservationTest {
                     onNext = { if (index < 1) { index++; observedIndex[0] = index } },
                     onToggleBar = {},
                     onEnterZoom = {},
-                    onOcrBlockDoubleTap = {},
+                    onOcrBlockSelected = { _, _ -> },
                     onBack = {},
                 )
             }

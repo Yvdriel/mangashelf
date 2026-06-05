@@ -22,7 +22,8 @@ object Routes {
     /** Builds the reader route for a concrete (manga, volume). */
     fun reader(mangaId: Int, volumeNumber: Int) = "reader/$mangaId/$volumeNumber"
 
-    /** Flashcards (F.3–F.7). Temporary top-level entries until the 3-section shell (D3.3). */
+    /** Flashcards pillar. [FLASHCARDS_HOME] is the section root of the 3-section shell (D3.3). */
+    const val FLASHCARDS_HOME = "flashcards/home"
     const val FLASHCARDS_REVIEW = "flashcards/review"
     const val FLASHCARDS_SETTINGS = "flashcards/settings"
     const val FLASHCARDS_HEATMAP = "flashcards/heatmap"

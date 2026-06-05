@@ -149,7 +149,10 @@ class ReaderViewModel @Inject constructor(
         if (_state.value.zoom is ZoomState.Zoom) return // inert while zoomed
         val sentence = block.lines.joinToString("")
         val pageIndex = _state.value.pageIndex
+        // Recycle a still-open popup's crop before replacing it (selecting block→block must not leak).
+        val staleImage = _state.value.ocrPopup?.image
         _state.value = _state.value.copy(ocrPopup = OcrPopupState(sentence = sentence, loading = true))
+        staleImage?.let { if (!it.isRecycled) it.recycle() }
         viewModelScope.launch {
             // D3.1: deinflect/look up the bubble text → dictionary entries (conjugated/romaji/kana/
             // kanji all resolve via scan()). Local; no network.
@@ -209,7 +212,8 @@ class ReaderViewModel @Inject constructor(
         val pageIndex = _state.value.pageIndex
         val definitionHtml = hit?.let { dictEngine.cardBackHtml(it, senseIndex) }
         viewModelScope.launch {
-            val bytes = popup.image?.let { compressJpeg(it) }
+            // Compress off the main thread (e-ink CPU is slow); mining itself hops to IO internally.
+            val bytes = popup.image?.let { withContext(Dispatchers.IO) { compressJpeg(it) } }
             cardMiner.mine(
                 sentence = popup.sentence,
                 imageBytes = bytes,

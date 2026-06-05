@@ -243,4 +243,20 @@ class ReaderViewModelTest {
         waitUntil { capturedDefinition != "UNSET" }
         assertEquals("<b>食べる</b>", capturedDefinition)
     }
+
+    // Copilot review: selecting block→block must recycle the previous crop (48 MB heap → no leak/OOM).
+    @Test
+    fun selectingAnotherBlock_recyclesPreviousCrop() {
+        val a = MokuroBlock(box = listOf(10, 10, 200, 200), vertical = true, fontSize = 20.0, lines = listOf("食べた"))
+        val b = MokuroBlock(box = listOf(220, 10, 400, 200), vertical = false, fontSize = 18.0, lines = listOf("猫"))
+        val doc = MokuroDoc(pages = listOf(MokuroPage(imgWidth = 480, imgHeight = 720, imgPath = "001.png", blocks = listOf(a, b))))
+        val vm = ReaderViewModel(handle(), progress, factory, MokuroSourceFactory { _, _ -> doc }, miner, dict, ReaderKeyBus())
+        waitUntil { vm.state.value.ocrPage != null }
+        vm.onOcrBlockSelected(a, 0)
+        waitUntil { vm.state.value.ocrPopup?.image != null }
+        val firstCrop = vm.state.value.ocrPopup!!.image!!
+        vm.onOcrBlockSelected(b, 1)
+        waitUntil { vm.state.value.ocrPopup?.sentence == "猫" }
+        assertEquals("previous crop must be recycled", true, firstCrop.isRecycled)
+    }
 }

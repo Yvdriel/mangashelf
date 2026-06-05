@@ -14,6 +14,7 @@ import com.mangashelf.reader.ui.theme.NotoSansJp
 import com.mudita.mmd.components.nav_bar.NavigationBarItemMMD
 import com.mudita.mmd.components.nav_bar.NavigationBarMMD
 import com.mudita.mmd.components.text.TextMMD
+import java.util.Locale
 
 /**
  * D3.3 three-section app shell: hosts the nav graph with a persistent MMD bottom navigation bar for
@@ -58,7 +59,7 @@ internal fun ShellBottomBar(selected: ShellSection?, onSelect: (ShellSection) ->
                 onClick = { onSelect(section) },
                 icon = { TextMMD(section.glyph, fontFamily = NotoSansJp) },
                 label = { TextMMD(section.label) },
-                modifier = Modifier.testTag("$NAV_TAG_PREFIX${section.name.lowercase()}"),
+                modifier = Modifier.testTag("$NAV_TAG_PREFIX${section.name.lowercase(Locale.ROOT)}"),
             )
         }
     }
